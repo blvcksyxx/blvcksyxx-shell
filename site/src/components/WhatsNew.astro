@@ -1,0 +1,307 @@
+---
+import { ArrowUpRight, Check, Sparkles } from '@lucide/astro';
+import { site, whatsNew } from '../data/site';
+---
+
+<section class="section whats-new" id="whats-new" aria-labelledby="whats-new-title">
+  <div class="container">
+    <div class="section-head">
+      <p class="eyebrow" data-reveal>
+        <span class="dot" aria-hidden="true"></span>
+        what&rsquo;s new
+        <span class="slash" aria-hidden="true">/</span>
+        v1.1
+      </p>
+      <div class="head-copy">
+        <h2 id="whats-new-title" data-reveal>the update<br />you feel.</h2>
+      </div>
+      <div class="head-side">
+        <p class="lede" data-reveal>
+          v1.1 adds faster window switching, a real Task view, bar cards, new widgets and a
+          safer updater. The architecture, custom binds and the Security page stay.
+        </p>
+        <p class="showcase-hint" data-reveal>
+          <span class="pill is-live">v1.1 stable</span>
+          <span class="mono">MIT · Hyprland + niri</span>
+        </p>
+      </div>
+    </div>
+
+    <div class="wn-grid">
+      <ol class="wn-list" data-reveal>
+        {whatsNew.map((item) => (
+          <li class="wn-item">
+            <span class="wn-num mono">{item.num}</span>
+            <div class="wn-copy">
+              <h3>{item.title}</h3>
+              <p>{item.body}</p>
+              <div class="wn-tags">
+                {item.tags.map((tag) => (
+                  <span>{tag}</span>
+                ))}
+              </div>
+            </div>
+          </li>
+        ))}
+      </ol>
+
+      <aside class="wn-side" data-reveal>
+        <figure class="wn-shot">
+          <div class="wn-shot-head">
+            <span class="mono">settings / update center</span>
+            <span class="wn-live"><i></i> v1.1</span>
+          </div>
+          <img
+            src="/screenshots/settings-update.webp"
+            alt="blvcksyxx shell Update Center showing v1.1 is available"
+            width="1152"
+            height="799"
+            loading="lazy"
+            decoding="async"
+          />
+          <figcaption>
+            The Update Center knows about v1.1. Your files are backed up, local changes are kept aside.
+          </figcaption>
+        </figure>
+
+        <div class="wn-side-card">
+          <div class="wn-side-icon"><Sparkles size={18} stroke-width={1.6} /></div>
+          <h3>everything that stayed</h3>
+          <p>
+            Material 3 Settings, the Dynamic island, launcher, dock, lock screen, Security,
+            custom binds, the crescent-moon identity and the MIT license.
+          </p>
+          <ul>
+            <li><Check size={13} stroke-width={2.2} /> Settings > Security and the installer baseline</li>
+            <li><Check size={13} stroke-width={2.2} /> Your own Hyprland binds and scripts</li>
+            <li><Check size={13} stroke-width={2.2} /> Linux / Wayland only — no fake macOS build</li>
+          </ul>
+          <a class="wn-link" href={site.releaseNotes} target="_blank" rel="noopener noreferrer">
+            read the v1.1 release notes
+            <ArrowUpRight size={14} stroke-width={1.8} />
+          </a>
+        </div>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<style>
+  .whats-new {
+    position: relative;
+  }
+
+  .wn-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.08fr) minmax(340px, 0.92fr);
+    gap: clamp(30px, 5vw, 76px);
+    align-items: start;
+  }
+
+  .wn-list {
+    display: grid;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    border-top: 1px solid var(--line);
+  }
+
+  .wn-item {
+    display: grid;
+    grid-template-columns: 54px minmax(0, 1fr);
+    gap: clamp(14px, 2vw, 28px);
+    padding: clamp(22px, 3vw, 34px) 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .wn-num {
+    padding-top: 4px;
+    color: var(--ink-3);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+  }
+
+  .wn-copy h3 {
+    margin: 0 0 8px;
+    color: var(--ink);
+    font-size: clamp(1.18rem, 1.7vw, 1.5rem);
+    font-weight: 500;
+    letter-spacing: -0.035em;
+    line-height: 1.15;
+  }
+
+  .wn-copy p {
+    max-width: 58ch;
+    color: var(--ink-2);
+    font-size: 0.95rem;
+    line-height: 1.62;
+  }
+
+  .wn-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+    margin-top: 14px;
+  }
+
+  .wn-tags span {
+    padding: 5px 10px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.025);
+    color: var(--ink-3);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.04em;
+  }
+
+  .wn-side {
+    position: sticky;
+    top: 112px;
+    display: grid;
+    gap: 18px;
+  }
+
+  .wn-shot,
+  .wn-side-card {
+    margin: 0;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: clamp(22px, 2.4vw, 30px);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.008)),
+      var(--surface);
+    box-shadow: 0 30px 90px rgba(0, 0, 0, 0.28);
+  }
+
+  .wn-shot-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 13px 16px;
+    border-bottom: 1px solid var(--line);
+    color: var(--ink-3);
+    font-size: 10px;
+    letter-spacing: 0.05em;
+  }
+
+  .wn-live {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--ink-2);
+  }
+
+  .wn-live i {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #8fe2b0;
+    box-shadow: 0 0 12px rgba(143, 226, 176, 0.7);
+  }
+
+  .wn-shot img {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1152 / 799;
+    object-fit: cover;
+  }
+
+  .wn-shot figcaption {
+    padding: 14px 17px 16px;
+    border-top: 1px solid var(--line);
+    color: var(--ink-3);
+    font-size: 11.5px;
+    line-height: 1.5;
+  }
+
+  .wn-side-card {
+    padding: clamp(20px, 2.5vw, 28px);
+  }
+
+  .wn-side-icon {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    margin-bottom: 16px;
+    border: 1px solid var(--line-2);
+    border-radius: 50%;
+    color: var(--ink);
+  }
+
+  .wn-side-card h3 {
+    margin: 0 0 9px;
+    font-size: 1.15rem;
+    font-weight: 500;
+    letter-spacing: -0.03em;
+  }
+
+  .wn-side-card p {
+    color: var(--ink-2);
+    font-size: 0.92rem;
+    line-height: 1.6;
+  }
+
+  .wn-side-card ul {
+    display: grid;
+    gap: 9px;
+    margin: 17px 0 19px;
+    padding: 0;
+    list-style: none;
+  }
+
+  .wn-side-card li {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    color: var(--ink-2);
+    font-size: 12px;
+    line-height: 1.45;
+  }
+
+  .wn-side-card li svg {
+    flex: none;
+    margin-top: 1px;
+    color: #8fe2b0;
+  }
+
+  .wn-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    border-bottom: 1px solid var(--line-2);
+    color: var(--ink);
+    font-size: 12px;
+    line-height: 1.8;
+    transition: border-color 0.3s var(--ease-out);
+  }
+
+  .wn-link:hover {
+    border-color: var(--ink);
+  }
+
+  @media (max-width: 980px) {
+    .wn-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .wn-side {
+      position: static;
+      grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+      align-items: stretch;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .wn-side {
+      grid-template-columns: 1fr;
+    }
+
+    .wn-item {
+      grid-template-columns: 34px minmax(0, 1fr);
+    }
+  }
+</style>

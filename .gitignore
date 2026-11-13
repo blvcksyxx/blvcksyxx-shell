@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+*.bak*
+.env
+*.log
+
+# runtime lock files
+config/waybar/.ui.lock

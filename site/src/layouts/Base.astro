@@ -1,0 +1,275 @@
+---
+import '@fontsource-variable/geist';
+import '@fontsource-variable/geist-mono';
+import '../styles/global.css';
+import '../styles/ui.css';
+import '../styles/sections.css';
+import Nav from '../components/Nav.astro';
+import Footer from '../components/Footer.astro';
+import { site } from '../data/site';
+
+interface Props {
+  title?: string;
+  description?: string;
+  image?: string;
+  noindex?: boolean;
+  preloadWallpaper?: boolean;
+}
+
+const {
+  title = 'blvcksyxx shell — your desktop. your rules.',
+  description = site.description,
+  image = '/og-image.png',
+  noindex = false,
+  preloadWallpaper = false,
+} = Astro.props;
+
+const path = Astro.url.pathname === '/' ? '/' : Astro.url.pathname.replace(/\/$/, '');
+const canonical = new URL(path, site.url).href;
+const imageUrl = new URL(image, site.url).href;
+
+const organizationId = `${site.url}/#organization`;
+const websiteId = `${site.url}/#website`;
+const softwareId = `${site.url}/#software`;
+const sourceId = `${site.url}/#source`;
+const webpageId = `${canonical}#webpage`;
+
+const schema = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'Organization',
+      '@id': organizationId,
+      name: 'blvcksyxx',
+      url: site.personal,
+      logo: {
+        '@type': 'ImageObject',
+        url: `${site.url}/icon-512.png`,
+        width: 512,
+        height: 512,
+      },
+      sameAs: [site.githubProfile, site.telegram],
+    },
+    {
+      '@type': 'WebSite',
+      '@id': websiteId,
+      url: `${site.url}/`,
+      name: site.name,
+      alternateName: 'blvcksyxx',
+      description: site.description,
+      inLanguage: 'en',
+      publisher: { '@id': organizationId },
+    },
+    {
+      '@type': 'WebPage',
+      '@id': webpageId,
+      url: canonical,
+      name: title,
+      description,
+      isPartOf: { '@id': websiteId },
+      about: { '@id': softwareId },
+      primaryImageOfPage: {
+        '@type': 'ImageObject',
+        url: imageUrl,
+      },
+      inLanguage: 'en',
+      dateModified: '2026-11-12',
+    },
+    {
+      '@type': 'SoftwareApplication',
+      '@id': softwareId,
+      name: site.name,
+      applicationCategory: 'DesktopEnhancementApplication',
+      applicationSubCategory: 'Linux desktop shell',
+      operatingSystem: 'Linux',
+      url: `${site.url}/`,
+      downloadUrl: site.releases,
+      installUrl: site.installDocs,
+      softwareHelp: site.installDocs,
+      softwareVersion: site.version,
+      license: 'https://opensource.org/license/mit',
+      isAccessibleForFree: true,
+      releaseNotes: site.releaseNotes,
+      dateModified: '2026-11-12',
+      author: { '@id': organizationId },
+      publisher: { '@id': organizationId },
+      copyrightHolder: { '@id': organizationId },
+      offers: {
+        '@type': 'Offer',
+        price: '0',
+        priceCurrency: 'USD',
+      },
+      sameAs: [site.github, site.telegram],
+      description: site.description,
+      image: [
+        `${site.url}/screenshots/settings-home.webp`,
+        `${site.url}/screenshots/settings-bar.webp`,
+        `${site.url}/screenshots/settings-theme.webp`,
+        `${site.url}/screenshots/settings-widgets.webp`,
+      ],
+      screenshot: [
+        `${site.url}/screenshots/settings-home.webp`,
+        `${site.url}/screenshots/settings-bar.webp`,
+        `${site.url}/screenshots/settings-theme.webp`,
+        `${site.url}/screenshots/settings-widgets.webp`,
+      ],
+      featureList: [
+        'Task view and Alt + Tab window switcher',
+        'Custom keybinds in Settings',
+        'Weather, System and Date bar cards',
+        'Dynamic island bar',
+        'Control center',
+        'Desktop widgets with frame rate control',
+        'Application launcher',
+        'Dock',
+        'Lock screen',
+        'Material 3 settings app',
+        'Security scan and system check',
+        'Whole-look themes and app colors',
+        'Update Center with local-change protection',
+        'Hyprland and niri support',
+      ],
+    },
+    {
+      '@type': 'SoftwareSourceCode',
+      '@id': sourceId,
+      name: site.name,
+      description: site.description,
+      codeRepository: site.github,
+      url: site.github,
+      programmingLanguage: ['QML', 'Shell', 'JavaScript'],
+      runtimePlatform: 'Linux',
+      license: 'https://opensource.org/license/mit',
+      version: site.version,
+      dateModified: '2026-11-12',
+      author: { '@id': organizationId },
+      maintainer: { '@id': organizationId },
+      copyrightHolder: { '@id': organizationId },
+    },
+  ],
+};
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <script is:inline>
+      document.documentElement.classList.add('js');
+      window.setTimeout(function () {
+        if (!window.__motionReady) document.documentElement.classList.add('motion-fallback');
+      }, 2200);
+    </script>
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <link rel="alternate" hreflang="en" href={canonical} />
+    <link rel="alternate" hreflang="x-default" href={canonical} />
+    <meta
+      name="robots"
+      content={
+        noindex
+          ? 'noindex, nofollow'
+          : 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1'
+      }
+    />
+    <meta name="theme-color" content="#050505" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="author" content="blvcksyxx" />
+    <meta name="copyright" content="MIT License; copyright blvcksyxx 2026" />
+    <meta name="application-name" content={site.name} />
+    <meta name="apple-mobile-web-app-title" content={site.shortName} />
+
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <link rel="sitemap" type="application/xml" href="/sitemap-index.xml" />
+    <link rel="me" href={site.githubProfile} />
+    <link rel="me" href={site.telegram} />
+    <link rel="me" href={site.personal} />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content={site.name} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={imageUrl} />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="blvcksyxx shell — your desktop. your rules." />
+    <meta property="og:locale" content="en_US" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={imageUrl} />
+    <meta name="twitter:image:alt" content="blvcksyxx shell — your desktop. your rules." />
+
+    {preloadWallpaper && (
+      <link
+        rel="preload"
+        as="image"
+        href="/wallpapers/mono-peaks-1600.webp"
+        imagesrcset="/wallpapers/mono-peaks-800.webp 800w, /wallpapers/mono-peaks-1600.webp 1600w"
+        imagesizes="(max-width: 720px) 100vw, 1280px"
+        type="image/webp"
+      />
+    )}
+
+    {!noindex && <script type="application/ld+json" set:html={JSON.stringify(schema)} />}
+  </head>
+  <body>
+    <a class="skip-link" href="#main">skip to content</a>
+
+    <svg class="brand-sprite" aria-hidden="true" focusable="false" width="0" height="0">
+      <defs>
+        <linearGradient id="brand-silver" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#ffffff"></stop>
+          <stop offset="0.55" stop-color="#f2f2ef"></stop>
+          <stop offset="1" stop-color="#a9a9a4"></stop>
+        </linearGradient>
+        <mask
+          id="brand-crescent-cut"
+          maskUnits="userSpaceOnUse"
+          x="0"
+          y="0"
+          width="512"
+          height="512">
+          <rect width="512" height="512" fill="#ffffff"></rect>
+          <circle cx="338" cy="166" r="148" fill="#000000"></circle>
+        </mask>
+      </defs>
+      <symbol id="brand-mark" viewBox="0 0 512 512">
+        <circle
+          cx="256"
+          cy="256"
+          r="206"
+          fill="url(#brand-silver)"
+          mask="url(#brand-crescent-cut)"></circle>
+        <path
+          d="M374 300l7 22 22 7-22 7-7 22-7-22-22-7 22-7Z"
+          fill="currentColor"
+          fill-opacity="0.92"></path>
+      </symbol>
+    </svg>
+
+    <div class="site-bg" aria-hidden="true">
+      <div class="site-grid"></div>
+      <div class="starfield starfield-a"></div>
+      <div class="starfield starfield-b"></div>
+      <div class="site-grain"></div>
+    </div>
+
+    <Nav />
+    <main id="main">
+      <slot />
+    </main>
+    <Footer />
+    <script>
+      import '../scripts/main';
+    </script>
+  </body>
+</html>

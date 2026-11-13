@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+set -u
+app="${1:-}"
+
+fail() {
+    if command -v notify-send >/dev/null 2>&1; then
+        notify-send "App launcher" "Could not find ${app:-application} on this system."
+    fi
+    exit 1
+}
+
+find_desktop_by_name() {
+    local pattern="$1" dir file
+    for dir in "$HOME/.local/share/applications" /usr/local/share/applications /usr/share/applications; do
+        [[ -d "$dir" ]] || continue
+        while IFS= read -r -d '' file; do
+            if grep -iEq "^Name(\\[[^]]+\\])?=.*(${pattern})" "$file" 2>/dev/null; then
+                printf '%s\n' "$file"
+                return 0
+            fi
+        done < <(find "$dir" -maxdepth 1 -type f -name '*.desktop' -print0 2>/dev/null)
+    done
+    return 1
+}
+
+launch_desktop() {
+    local pattern="$1" file id
+    file="$(find_desktop_by_name "$pattern" || true)"
+    [[ -n "$file" ]] || return 1
+    id="$(basename "$file" .desktop)"
+    if command -v gtk-launch >/dev/null 2>&1; then
+        exec gtk-launch "$id"
+    fi
+    if command -v dex >/dev/null 2>&1; then
+        exec dex "$file"
+    fi
+    return 1
+}
+
+case "$app" in
+    firefox)
+        command -v firefox >/dev/null 2>&1 && exec firefox
+        launch_desktop 'Firefox' || fail
+        ;;
+    files)
+        command -v nautilus >/dev/null 2>&1 && exec nautilus
+        launch_desktop 'Files|Nautilus' && exit 0
+        command -v xdg-open >/dev/null 2>&1 && exec xdg-open "$HOME"
+        fail
+        ;;
+    kitty)
+        command -v kitty >/dev/null 2>&1 && exec kitty
+        launch_desktop 'kitty' || fail
+        ;;
+    settings)
+        command -v rice-settings >/dev/null 2>&1 && exec rice-settings
+        if [ -x "$HOME/.local/bin/rice-settings" ]; then exec "$HOME/.local/bin/rice-settings"; fi
+        launch_desktop 'Settings' || fail
+        ;;
+    *) fail ;;
+esac

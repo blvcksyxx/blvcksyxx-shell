@@ -1,0 +1,316 @@
+---
+import { ArrowUpRight, Camera } from '@lucide/astro';
+import { previews, site, wallpaperPreviews } from '../data/site';
+---
+
+<section class="section previews" id="previews" aria-labelledby="previews-title">
+  <div class="container">
+    <div class="section-head">
+      <p class="eyebrow" data-reveal>
+        <span class="dot" aria-hidden="true"></span>
+        previews
+        <span class="slash" aria-hidden="true">/</span>
+        the real thing
+      </p>
+      <div class="head-copy">
+        <h2 id="previews-title" data-reveal>look before<br />you install.</h2>
+      </div>
+      <div class="head-side">
+        <p class="lede" data-reveal>
+          Screenshots of the running shell. Settings, the bar, the widgets, keybinds,
+          notifications and the Update Center — every surface uses the same type, geometry and
+          motion.
+        </p>
+        <p class="showcase-hint" data-reveal>
+          <span class="pill"><Camera size={12} stroke-width={1.8} /> captured on Hyprland</span>
+          <span class="mono">arch linux · 1920 × 1080</span>
+        </p>
+      </div>
+    </div>
+
+    <div class="preview-grid">
+      {previews.map((preview) => (
+        <figure class:list={['preview-card', { 'is-wide': preview.wide }]} data-reveal>
+          <a
+            class="preview-image"
+            href={preview.src}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`Open ${preview.title} screenshot at full size`}
+          >
+            <img
+              src={preview.src}
+              alt={preview.alt}
+              width="1152"
+              height="799"
+              loading="lazy"
+              decoding="async"
+            />
+            <span class="preview-zoom mono">open full size <ArrowUpRight size={13} stroke-width={1.8} /></span>
+          </a>
+          <figcaption>
+            <span class="preview-title">{preview.title}</span>
+            <span class="preview-caption">{preview.caption}</span>
+          </figcaption>
+        </figure>
+      ))}
+    </div>
+
+    <div class="wallpaper-strip" data-reveal>
+      <div class="wallpaper-strip-head">
+        <div>
+          <p class="eyebrow">
+            <span class="dot" aria-hidden="true"></span>
+            wallpapers
+            <span class="slash" aria-hidden="true">/</span>
+            included
+          </p>
+          <h3>seven space wallpapers, in the box.</h3>
+        </div>
+        <a href={`${site.github}/tree/main/wallpapers`} target="_blank" rel="noopener noreferrer">
+          see all wallpapers
+          <ArrowUpRight size={14} stroke-width={1.8} />
+        </a>
+      </div>
+
+      <div class="wallpaper-grid">
+        {wallpaperPreviews.map((wallpaper) => (
+          <a
+            class="wallpaper-card"
+            href={wallpaper.jpg}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`Open the ${wallpaper.name} wallpaper`}
+          >
+            <picture>
+              <source srcset={wallpaper.src} type="image/webp" />
+              <img
+                src={wallpaper.jpg}
+                alt={`${wallpaper.name} wallpaper included with blvcksyxx shell`}
+                width="1600"
+                height="900"
+                loading="lazy"
+                decoding="async"
+              />
+            </picture>
+            <span>{wallpaper.name}</span>
+          </a>
+        ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .previews {
+    position: relative;
+  }
+
+  .preview-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: clamp(14px, 1.8vw, 22px);
+  }
+
+  .preview-card {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    margin: 0;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: clamp(20px, 2vw, 28px);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.006)),
+      var(--surface);
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.22);
+    transition:
+      border-color 0.35s var(--ease-out),
+      transform 0.45s var(--ease-out);
+  }
+
+  .preview-card:hover {
+    border-color: var(--line-2);
+    transform: translateY(-3px);
+  }
+
+  .preview-card.is-wide {
+    grid-column: span 2;
+  }
+
+  .preview-image {
+    position: relative;
+    display: block;
+    overflow: hidden;
+    background: #0a0a0b;
+  }
+
+  .preview-image img {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1152 / 799;
+    object-fit: cover;
+    transition: transform 0.7s var(--ease-out);
+  }
+
+  .preview-card:hover .preview-image img {
+    transform: scale(1.018);
+  }
+
+  .preview-zoom {
+    position: absolute;
+    right: 12px;
+    bottom: 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 9px;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 999px;
+    background: rgba(5, 5, 5, 0.62);
+    color: rgba(255, 255, 255, 0.78);
+    font-size: 9px;
+    letter-spacing: 0.04em;
+    opacity: 0;
+    backdrop-filter: blur(12px);
+    transition: opacity 0.3s var(--ease-out);
+  }
+
+  .preview-card:hover .preview-zoom {
+    opacity: 1;
+  }
+
+  .preview-card figcaption {
+    display: grid;
+    gap: 4px;
+    padding: 14px 16px 16px;
+  }
+
+  .preview-title {
+    color: var(--ink);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+  }
+
+  .preview-caption {
+    color: var(--ink-3);
+    font-size: 11.5px;
+    line-height: 1.45;
+  }
+
+  .wallpaper-strip {
+    margin-top: clamp(42px, 6vw, 78px);
+    padding-top: clamp(26px, 4vw, 42px);
+    border-top: 1px solid var(--line);
+  }
+
+  .wallpaper-strip-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+    margin-bottom: 20px;
+  }
+
+  .wallpaper-strip-head h3 {
+    margin: 9px 0 0;
+    font-size: clamp(1.35rem, 2.4vw, 2rem);
+    font-weight: 500;
+    letter-spacing: -0.045em;
+  }
+
+  .wallpaper-strip-head a {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding-bottom: 3px;
+    border-bottom: 1px solid var(--line-2);
+    color: var(--ink-2);
+    font-size: 11px;
+    white-space: nowrap;
+    transition: color 0.3s var(--ease-out), border-color 0.3s var(--ease-out);
+  }
+
+  .wallpaper-strip-head a:hover {
+    border-color: var(--ink);
+    color: var(--ink);
+  }
+
+  .wallpaper-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .wallpaper-card {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    background: var(--surface);
+  }
+
+  .wallpaper-card img {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    transition: transform 0.7s var(--ease-out);
+  }
+
+  .wallpaper-card:hover img {
+    transform: scale(1.035);
+  }
+
+  .wallpaper-card span {
+    position: absolute;
+    left: 10px;
+    bottom: 9px;
+    padding: 4px 8px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 999px;
+    background: rgba(5, 5, 5, 0.62);
+    color: rgba(255, 255, 255, 0.82);
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 0.04em;
+    backdrop-filter: blur(10px);
+  }
+
+  @media (max-width: 980px) {
+    .preview-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .preview-card.is-wide {
+      grid-column: span 2;
+    }
+
+    .wallpaper-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 640px) {
+    .preview-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .preview-card.is-wide {
+      grid-column: auto;
+    }
+
+    .preview-zoom {
+      opacity: 1;
+    }
+
+    .wallpaper-strip-head {
+      align-items: flex-start;
+      flex-direction: column;
+      gap: 14px;
+    }
+  }
+</style>

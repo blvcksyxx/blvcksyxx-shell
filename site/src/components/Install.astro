@@ -1,0 +1,170 @@
+---
+import {
+  ArrowUpRight,
+  BookOpen,
+  Check,
+  Copy,
+  ShieldCheck,
+  Terminal,
+} from '@lucide/astro';
+import { platforms, requirements, site } from '../data/site';
+
+const options = [
+  { flag: '--wm=hyprland | niri | both', text: 'pick the window manager, skip the question' },
+  { flag: '--yes', text: 'install everything without prompts' },
+  { flag: '--aur / --no-aur', text: 'Arch: always use AUR, or never build yay' },
+  { flag: '--no-packages', text: 'skip the package step' },
+  { flag: '--dry-run', text: 'show every change, touch nothing' },
+  { flag: '--restore', text: 'put back the files from the last backup' },
+] as const;
+---
+
+<section class="section install" id="install" aria-labelledby="install-title">
+  <div class="container">
+    <div class="section-head">
+      <p class="eyebrow" data-reveal>
+        <span class="dot" aria-hidden="true"></span>
+        getting started
+        <span class="slash" aria-hidden="true">/</span>
+        one minute
+      </p>
+      <div class="head-copy">
+        <h2 id="install-title" data-reveal>three lines.<br />one desktop.</h2>
+      </div>
+      <div class="head-side">
+        <p class="lede" data-reveal>
+          Pick your system, paste the commands, log out and choose Hyprland or niri on the login
+          screen. The installer handles packages, configs, backups and the first-run setup.
+        </p>
+        <p class="showcase-hint" data-reveal>
+          <span class="pill is-live">{site.version} stable</span>
+          <span class="mono">restore is one flag away</span>
+        </p>
+      </div>
+    </div>
+
+    <div class="install-grid">
+      <div class="install-main" data-reveal>
+        <div class="install-tabs" role="tablist" aria-label="Installation platform">
+          {platforms.map((platform, index) => (
+            <button
+              class:list={['install-tab', { 'is-active': index === 0 }]}
+              id={`install-tab-${platform.id}`}
+              role="tab"
+              type="button"
+              aria-selected={index === 0 ? 'true' : 'false'}
+              aria-controls={`install-panel-${platform.id}`}
+              tabindex={index === 0 ? 0 : -1}
+              data-install-tab={platform.id}
+            >
+              <span class="install-tab-dot" aria-hidden="true"></span>
+              {platform.label}
+            </button>
+          ))}
+          <span class="install-tabs-note mono">choose your distro</span>
+        </div>
+
+        <div class="install-panels">
+          {platforms.map((platform, index) => (
+            <div
+              class="install-panel"
+              id={`install-panel-${platform.id}`}
+              role="tabpanel"
+              aria-labelledby={`install-tab-${platform.id}`}
+              data-install-panel={platform.id}
+              tabindex="0"
+              hidden={index !== 0}
+            >
+              <div class="cmd-block">
+                <div class="cmd-head">
+                  <span class="cmd-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+                  <span class="cmd-detail">{platform.detail}</span>
+                  <button
+                    class="cmd-copy"
+                    type="button"
+                    data-copy-target={`cmd-${platform.id}`}
+                    aria-label={`Copy the ${platform.label} install commands`}
+                  >
+                    <Copy size={13} stroke-width={1.8} data-copy-icon class="cmd-copy-copy" />
+                    <Check size={13} stroke-width={2.1} class="cmd-copy-check" />
+                    <span data-copy-label>copy</span>
+                  </button>
+                </div>
+                <pre class="cmd-pre"><code id={`cmd-${platform.id}`}>{platform.command}</code></pre>
+                <div class="cmd-foot">
+                  <span class="cmd-foot-note">
+                    <ShieldCheck size={13} stroke-width={1.7} />
+                    replaced files are backed up first
+                  </span>
+                  <span class="cmd-foot-note mono">~/.config/blvcksyxx-shell-backup-&lt;time&gt;/</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div class="install-actions">
+          <a class="btn btn-primary" href={site.installDocs} target="_blank" rel="noopener noreferrer">
+            <BookOpen size={16} stroke-width={1.7} />
+            full install guide
+            <ArrowUpRight size={15} stroke-width={1.8} />
+          </a>
+          <a class="btn btn-ghost" href={site.releases} target="_blank" rel="noopener noreferrer">
+            release {site.version}
+            <ArrowUpRight size={15} stroke-width={1.8} />
+          </a>
+        </div>
+      </div>
+
+      <aside class="install-side" data-reveal>
+        <div class="install-card">
+          <div class="install-card-head">
+            <Terminal size={16} stroke-width={1.6} />
+            <h3>requirements</h3>
+          </div>
+          <ul class="req-list">
+            {requirements.map((req) => (
+              <li><Check size={13} stroke-width={2} />{req}</li>
+            ))}
+          </ul>
+          <div class="req-systems">
+            <span>Arch</span><span>CachyOS</span><span>EndeavourOS</span><span>Garuda</span>
+            <span>Fedora</span><span>Nobara</span><span>NixOS</span>
+          </div>
+          <p class="req-note">
+            Bazzite and Silverblue get the <span class="mono">rpm-ostree</span> steps printed by the
+            installer. Manjaro may not work: its packages are held back and Hyprland can be older
+            than 0.55.
+          </p>
+        </div>
+      </aside>
+    </div>
+
+    <div class="install-lower">
+      <div class="install-card install-flags-card" data-reveal>
+        <div class="install-card-head">
+          <span class="install-card-glyph mono">$</span>
+          <h3>installer flags</h3>
+          <span class="install-card-hint mono">optional</span>
+        </div>
+        <dl class="flag-list">
+          {options.map((option) => (
+            <div>
+              <dt class="mono">{option.flag}</dt>
+              <dd>{option.text}</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+
+      <div class="install-card install-card-accent" data-reveal>
+        <p class="install-accent-kicker mono">after the install</p>
+        <p class="install-accent-title">log out, pick your session, press a key.</p>
+        <div class="install-keys">
+          <span><span class="kbd">SUPER</span> + <span class="kbd">U</span> settings</span>
+          <span><span class="kbd">ALT</span> + <span class="kbd">Space</span> launcher</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

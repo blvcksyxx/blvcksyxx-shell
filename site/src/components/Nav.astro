@@ -1,0 +1,72 @@
+---
+import { ArrowUpRight, CircleQuestionMark, Images, LayoutGrid, PanelsTopLeft, Send, Sparkles, Terminal } from '@lucide/astro';
+import BrandGithub from './BrandGithub.astro';
+import Logo from './Logo.astro';
+import { nav, site } from '../data/site';
+
+const dockIcons = {
+  interface: PanelsTopLeft,
+  features: LayoutGrid,
+  previews: Images,
+  new: Sparkles,
+  install: Terminal,
+  faq: CircleQuestionMark,
+} as const;
+---
+
+<div class="scroll-progress" aria-hidden="true"><i data-progress></i></div>
+
+<header class="top-nav" data-nav>
+  <a class="nav-brand" href="/" aria-label="blvcksyxx shell — home">
+    <Logo class="brand-mark" />
+    <span class="brand-word">blvcksyxx <span>shell</span></span>
+  </a>
+
+  <nav class="nav-links" aria-label="Primary">
+    {nav.map((item) => (
+      <a href={item.href} data-spy={item.href.slice(1)}>{item.label}</a>
+    ))}
+  </nav>
+
+  <div class="nav-actions">
+    <span class="nav-version" aria-label={`version ${site.version}`}>{site.version}</span>
+    <a
+      class="icon-btn"
+      href={site.telegram}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label="Join the Telegram channel"
+    >
+      <Send size={15} stroke-width={1.7} />
+    </a>
+    <a
+      class="icon-btn"
+      href={site.github}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label="blvcksyxx shell on GitHub"
+    >
+      <BrandGithub size={16} />
+    </a>
+    <a class="btn btn-primary nav-install" href="#install">
+      install
+      <ArrowUpRight size={15} stroke-width={1.8} class="arrow" />
+    </a>
+  </div>
+</header>
+
+<nav class="mobile-dock" aria-label="Sections">
+  {nav.map((item) => {
+    const Icon = dockIcons[item.label as keyof typeof dockIcons] ?? CircleQuestionMark;
+    return (
+      <a href={item.href} data-spy={item.href.slice(1)}>
+        <Icon size={17} stroke-width={1.7} />
+        <span>{item.label}</span>
+      </a>
+    );
+  })}
+  <a href={site.telegram} target="_blank" rel="noopener noreferrer" aria-label="Join Telegram">
+    <Send size={17} stroke-width={1.7} />
+    <span>telegram</span>
+  </a>
+</nav>

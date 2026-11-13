@@ -1,0 +1,504 @@
+---
+import {
+  BatteryFull,
+  Bell,
+  BellOff,
+  Bluetooth,
+  CalendarDays,
+  CloudSun,
+  Coffee,
+  Folder,
+  Globe,
+  LayoutGrid,
+  MoonStar,
+  AudioLines,
+  Pause,
+  Plane,
+  Play,
+  Search,
+  Settings,
+  Rewind,
+  FastForward,
+  Sun,
+  Terminal,
+  Volume2,
+  Wifi,
+} from '@lucide/astro';
+
+const tabs = [
+  {
+    id: 'bar',
+    label: 'bar & island',
+    num: '01',
+    description:
+      'The dynamic bar is your clock until it needs to become the player, volume, workspaces, notifications, today or recording.',
+    meta: 'dynamic bar · island states',
+    detail: 'style dynamic / flat / island / islands / pills / notch',
+  },
+  {
+    id: 'control',
+    label: 'control center',
+    num: '02',
+    description:
+      'SUPER + N opens switches, sliders, media and notifications in one Material 3 surface with smooth motion.',
+    meta: 'control center · quick settings',
+    detail: 'volume · brightness · wi-fi · bluetooth · dnd · network',
+  },
+  {
+    id: 'launcher',
+    label: 'launcher',
+    num: '03',
+    description:
+      'ALT + Space. Five themes, four layouts, a search field and every app — list, grid, full-width or split.',
+    meta: 'launcher · app search',
+    detail: 'themes onyx / graphite / midnight / rose / paper',
+  },
+  {
+    id: 'widgets',
+    label: 'desktop widgets',
+    num: '04',
+    description:
+      'Frosted glass widgets sit over a blurred wallpaper and step back while windows are open. Move, resize and restyle them in edit mode.',
+    meta: 'desktop widgets · edit mode',
+    detail: 'clock · weather · resources · media · visualizer · notes',
+  },
+] as const;
+---
+
+<section class="section showcase" id="interface" aria-labelledby="interface-title">
+  <div class="section-rule" aria-hidden="true"></div>
+  <div class="container">
+    <div class="section-head">
+      <p class="eyebrow" data-reveal>
+        <span class="dot" aria-hidden="true"></span>
+        interface
+        <span class="slash" aria-hidden="true">/</span>
+        the whole picture
+      </p>
+      <div class="head-copy">
+        <h2 id="interface-title" data-reveal>every part,<br />in one place.</h2>
+      </div>
+      <div class="head-side">
+        <p class="lede" data-reveal>
+          The bar, island, control center, launcher and widgets are not separate apps. They share
+          one geometry, one type scale and one motion language — so the desktop feels assembled,
+          not accumulated.
+        </p>
+        <p class="showcase-hint" data-reveal>
+          <span class="pill is-live">interactive</span>
+          <span class="mono">choose a surface</span>
+        </p>
+      </div>
+    </div>
+
+    <div class="showcase-grid">
+      <div class="showcase-stage-wrap" data-reveal>
+        <div class="stage-shell">
+          <div class="stage-chrome">
+            <span class="stage-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+            <span>blvcksyxx shell / interface</span>
+            <span class="live">live composition</span>
+          </div>
+
+          <div class="stage-screen" data-stage>
+            <div
+              class="stage-panel is-active"
+              id="panel-bar"
+              role="tabpanel"
+              aria-labelledby="tab-bar"
+              tabindex="0"
+              data-panel="bar"
+            >
+              <div class="scene">
+                <div class="desktop-wallpaper">
+                  <picture>
+                    <source
+                      type="image/webp"
+                      srcset="/wallpapers/mono-peaks-800.webp 800w, /wallpapers/mono-peaks-1600.webp 1600w"
+                      sizes="(max-width: 900px) 100vw, 880px"
+                    />
+                    <img
+                      src="/wallpapers/mono-peaks-1600.jpg"
+                      alt=""
+                      width="1600"
+                      height="900"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  </picture>
+                </div>
+                <div class="desktop-bar">
+                  <div class="bar-group">
+                    <span class="bar-launcher"><LayoutGrid size={12} stroke-width={2} /></span>
+                    <span class="workspace-dots" aria-hidden="true">
+                      <i class="is-on"></i><i></i><i></i><i></i>
+                    </span>
+                    <span class="bar-title">settings — appearance</span>
+                  </div>
+                  <div class="bar-group bar-status">
+                    <Wifi size={12} stroke-width={1.8} />
+                    <Volume2 size={12} stroke-width={1.8} />
+                    <span class="battery"><BatteryFull size={11} stroke-width={1.8} /> 84</span>
+                  </div>
+                </div>
+                <div class="island">
+                  <span class="island-time">09:41</span>
+                  <span class="island-weather"><Sun size={11} stroke-width={1.8} /> 14°</span>
+                  <span class="island-music-dot" aria-hidden="true"></span>
+                  <span class="wavebars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+                  <span class="island-notif-dot" aria-hidden="true"></span>
+                </div>
+                <div class="island-player">
+                  <div class="album-art"><AudioLines size={16} stroke-width={1.5} /></div>
+                  <div class="player-copy">
+                    <p class="player-title">night drive</p>
+                    <p class="player-sub">ambient sessions · 02:14</p>
+                    <div class="player-progress">
+                      <span class="player-track"><i></i></span>
+                      <span class="player-time">2:14 / 5:48</span>
+                    </div>
+                  </div>
+                  <div class="player-controls">
+                    <Rewind size={12} stroke-width={1.8} />
+                    <span class="is-play"><Pause size={10} stroke-width={2} /></span>
+                    <FastForward size={12} stroke-width={1.8} />
+                    <span class="wavebars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+                  </div>
+                </div>
+                <div class="desktop-widget widget-clock">
+                  <p class="widget-kicker">local time</p>
+                  <p class="widget-time">09:41</p>
+                  <p class="widget-date">thursday, 12 november</p>
+                </div>
+                <div class="scene-note">
+                  <span class="pill">SUPER + ALT + D</span>
+                  <strong>today & system</strong>
+                  <span>calendar · weather · CPU · GPU · RAM</span>
+                </div>
+                <div class="dock">
+                  <span class="dock-app is-active"><Terminal size={17} stroke-width={1.6} /></span>
+                  <span class="dock-app"><Folder size={17} stroke-width={1.6} /></span>
+                  <span class="dock-app"><Globe size={17} stroke-width={1.6} /></span>
+                  <span class="dock-app"><AudioLines size={17} stroke-width={1.6} /></span>
+                  <span class="dock-app"><Settings size={17} stroke-width={1.6} /></span>
+                </div>
+              </div>
+            </div>
+
+            <div
+              class="stage-panel"
+              id="panel-control"
+              role="tabpanel"
+              aria-labelledby="tab-control"
+              tabindex="0"
+              data-panel="control"
+              hidden
+            >
+              <div class="scene">
+                <div class="desktop-wallpaper">
+                  <picture>
+                    <source
+                      type="image/webp"
+                      srcset="/wallpapers/mono-peaks-800.webp 800w, /wallpapers/mono-peaks-1600.webp 1600w"
+                      sizes="(max-width: 900px) 100vw, 880px"
+                    />
+                    <img
+                      src="/wallpapers/mono-peaks-1600.jpg"
+                      alt=""
+                      width="1600"
+                      height="900"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  </picture>
+                </div>
+                <div class="island">
+                  <span class="island-time">09:41</span>
+                  <span class="island-weather"><Sun size={11} stroke-width={1.8} /> 14°</span>
+                  <span class="island-music-dot" aria-hidden="true"></span>
+                  <span class="wavebars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+                </div>
+                <div class="desktop-widget widget-clock">
+                  <p class="widget-kicker">local time</p>
+                  <p class="widget-time">09:41</p>
+                  <p class="widget-date">thursday, 12 november</p>
+                </div>
+
+                <div class="cc-panel cc-showcase">
+                  <div class="cc-head">
+                    <span class="cc-title">Control center</span>
+                    <span class="cc-tabs"><span class="on">quick</span><span>alerts</span></span>
+                  </div>
+                  <div class="cc-sliders">
+                    <div class="cc-slider">
+                      <Volume2 size={14} stroke-width={1.8} />
+                      <span class="cc-track"><i style="width: 64%"></i></span>
+                      <span class="cc-slider-val">64%</span>
+                    </div>
+                    <div class="cc-slider">
+                      <Sun size={14} stroke-width={1.8} />
+                      <span class="cc-track"><i style="width: 82%"></i></span>
+                      <span class="cc-slider-val">82%</span>
+                    </div>
+                    <div class="cc-slider">
+                      <MoonStar size={14} stroke-width={1.8} />
+                      <span class="cc-track"><i style="width: 40%"></i></span>
+                      <span class="cc-slider-val">40%</span>
+                    </div>
+                  </div>
+                  <div class="cc-grid">
+                    <span class="cc-toggle is-on"><Wifi size={14} stroke-width={1.8} /><span>Wi-Fi</span></span>
+                    <span class="cc-toggle is-on"><Bluetooth size={14} stroke-width={1.8} /><span>Bluetooth</span></span>
+                    <span class="cc-toggle"><MoonStar size={14} stroke-width={1.8} /><span>Night light</span></span>
+                    <span class="cc-toggle"><Plane size={14} stroke-width={1.8} /><span>Airplane</span></span>
+                    <span class="cc-toggle"><Coffee size={14} stroke-width={1.8} /><span>Keep awake</span></span>
+                    <span class="cc-toggle is-on"><BellOff size={14} stroke-width={1.8} /><span>Do not disturb</span></span>
+                  </div>
+                  <div class="cc-net">
+                    <span class="cc-net-label">NETWORK</span>
+                    <span class="cc-net-row"><span>home-5g</span><strong>connected</strong></span>
+                    <span class="cc-net-row"><span>PING</span><strong>12 ms</strong></span>
+                  </div>
+                  <div class="cc-notifs">
+                    <span class="cc-notif">
+                      <span class="cc-notif-icon"><Bell size={9} stroke-width={1.8} /></span>
+                      <span>
+                        <span class="cc-notif-title">New version ready</span>
+                        <span class="cc-notif-text">blvcksyxx shell v1 · open Settings to update</span>
+                      </span>
+                      <span class="cc-notif-time">now</span>
+                    </span>
+                    <span class="cc-notif">
+                      <span class="cc-notif-icon"><CloudSun size={9} stroke-width={1.8} /></span>
+                      <span>
+                        <span class="cc-notif-title">Clear skies today</span>
+                        <span class="cc-notif-text">14° · light wind · no rain</span>
+                      </span>
+                      <span class="cc-notif-time">8m</span>
+                    </span>
+                  </div>
+                </div>
+
+                <div class="scene-note">
+                  <span class="pill">SUPER + N</span>
+                  <strong>control center</strong>
+                  <span>switches · sliders · media · notifications</span>
+                </div>
+                <div class="dock">
+                  <span class="dock-app is-active"><Settings size={17} stroke-width={1.6} /></span>
+                  <span class="dock-app"><Terminal size={17} stroke-width={1.6} /></span>
+                  <span class="dock-app"><Folder size={17} stroke-width={1.6} /></span>
+                  <span class="dock-app"><Globe size={17} stroke-width={1.6} /></span>
+                  <span class="dock-app"><AudioLines size={17} stroke-width={1.6} /></span>
+                </div>
+              </div>
+            </div>
+
+            <div
+              class="stage-panel"
+              id="panel-launcher"
+              role="tabpanel"
+              aria-labelledby="tab-launcher"
+              tabindex="0"
+              data-panel="launcher"
+              hidden
+            >
+              <div class="scene">
+                <div class="desktop-wallpaper">
+                  <picture>
+                    <source
+                      type="image/webp"
+                      srcset="/wallpapers/mono-peaks-800.webp 800w, /wallpapers/mono-peaks-1600.webp 1600w"
+                      sizes="(max-width: 900px) 100vw, 880px"
+                    />
+                    <img
+                      src="/wallpapers/mono-peaks-1600.jpg"
+                      alt=""
+                      width="1600"
+                      height="900"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  </picture>
+                </div>
+                <div class="launcher-overlay">
+                  <div class="launcher-box">
+                    <div class="launcher-search">
+                      <Search size={14} stroke-width={1.8} />
+                      <span>ki</span>
+                      <span class="caret" aria-hidden="true"></span>
+                      <span class="launcher-search-hint">search apps, files and settings</span>
+                    </div>
+                    <div class="launcher-grid">
+                      <span class="launcher-app is-sel">
+                        <span class="launcher-app-icon"><Terminal size={13} stroke-width={1.7} /></span>
+                        <span class="launcher-app-name">Kitty</span>
+                      </span>
+                      <span class="launcher-app">
+                        <span class="launcher-app-icon"><Folder size={13} stroke-width={1.7} /></span>
+                        <span class="launcher-app-name">Files</span>
+                      </span>
+                      <span class="launcher-app">
+                        <span class="launcher-app-icon"><Globe size={13} stroke-width={1.7} /></span>
+                        <span class="launcher-app-name">Firefox</span>
+                      </span>
+                      <span class="launcher-app">
+                        <span class="launcher-app-icon"><Settings size={13} stroke-width={1.7} /></span>
+                        <span class="launcher-app-name">Settings</span>
+                      </span>
+                      <span class="launcher-app">
+                        <span class="launcher-app-icon"><AudioLines size={13} stroke-width={1.7} /></span>
+                        <span class="launcher-app-name">Music</span>
+                      </span>
+                      <span class="launcher-app">
+                        <span class="launcher-app-icon"><CalendarDays size={13} stroke-width={1.7} /></span>
+                        <span class="launcher-app-name">Calendar</span>
+                      </span>
+                      <span class="launcher-app">
+                        <span class="launcher-app-icon"><CloudSun size={13} stroke-width={1.7} /></span>
+                        <span class="launcher-app-name">Weather</span>
+                      </span>
+                      <span class="launcher-app">
+                        <span class="launcher-app-icon"><Settings size={13} stroke-width={1.7} /></span>
+                        <span class="launcher-app-name">Screenshot</span>
+                      </span>
+                    </div>
+                    <div class="launcher-foot">
+                      <span class="keys"><span class="kbd">↑</span><span class="kbd">↓</span> navigate</span>
+                      <span class="keys"><span class="kbd">↵</span> open</span>
+                      <span class="keys"><span class="kbd">esc</span> close</span>
+                      <span>5 themes · 4 layouts</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="scene-note">
+                  <span class="pill">ALT + Space</span>
+                  <strong>blvcksyxx launcher</strong>
+                  <span>list · grid · full-width · split</span>
+                </div>
+              </div>
+            </div>
+
+            <div
+              class="stage-panel"
+              id="panel-widgets"
+              role="tabpanel"
+              aria-labelledby="tab-widgets"
+              tabindex="0"
+              data-panel="widgets"
+              hidden
+            >
+              <div class="scene">
+                <div class="desktop-wallpaper">
+                  <picture>
+                    <source
+                      type="image/webp"
+                      srcset="/wallpapers/mono-peaks-800.webp 800w, /wallpapers/mono-peaks-1600.webp 1600w"
+                      sizes="(max-width: 900px) 100vw, 880px"
+                    />
+                    <img
+                      src="/wallpapers/mono-peaks-1600.jpg"
+                      alt=""
+                      width="1600"
+                      height="900"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  </picture>
+                </div>
+                <div class="island">
+                  <span class="island-time">09:41</span>
+                  <span class="island-weather"><Sun size={11} stroke-width={1.8} /> 14°</span>
+                  <span class="island-notif-dot" aria-hidden="true"></span>
+                </div>
+                <div class="scene-widgets">
+                  <div class="desktop-widget widget-clock">
+                    <p class="widget-kicker">local time</p>
+                    <p class="widget-time">09:41</p>
+                    <p class="widget-date">thursday, 12 november</p>
+                  </div>
+                  <div class="desktop-widget widget-weather">
+                    <p class="widget-kicker">weather</p>
+                    <div class="weather-row">
+                      <span class="weather-temp">14°</span>
+                      <Sun size={30} stroke-width={1.3} />
+                    </div>
+                    <p class="weather-foot">clear · feels like 12°</p>
+                  </div>
+                  <div class="desktop-widget controllers">
+                    <p class="widget-kicker">system</p>
+                    <div class="widget-rings">
+                      <div class="rings" aria-hidden="true"><span class="ring"></span></div>
+                      <div class="rings-copy">
+                        <span>CPU 38%</span>
+                        <span>RAM 62%</span>
+                        <span>GPU 21%</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="scene-media-card">
+                    <div class="album-art"><AudioLines size={20} stroke-width={1.4} /></div>
+                    <p class="scene-media-title">night drive</p>
+                    <p class="scene-media-sub">ambient sessions</p>
+                    <div class="scene-media-progress">
+                      <Rewind size={10} stroke-width={1.8} />
+                      <span class="wavebars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+                      <Play size={10} stroke-width={1.8} />
+                    </div>
+                  </div>
+                  <div class="visualizer-strip" aria-hidden="true">
+                    {Array.from({ length: 34 }).map(() => <i></i>)}
+                  </div>
+                </div>
+                <div class="scene-note">
+                  <span class="pill">SUPER + ALT + W</span>
+                  <strong>edit mode</strong>
+                  <span>move · resize · style · add widgets</span>
+                </div>
+                <div class="dock">
+                  <span class="dock-app"><Terminal size={17} stroke-width={1.6} /></span>
+                  <span class="dock-app"><Folder size={17} stroke-width={1.6} /></span>
+                  <span class="dock-app"><Globe size={17} stroke-width={1.6} /></span>
+                  <span class="dock-app is-active"><AudioLines size={17} stroke-width={1.6} /></span>
+                  <span class="dock-app"><Settings size={17} stroke-width={1.6} /></span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="stage-meta" aria-live="polite">
+          <span class="stage-meta-label">
+            <span data-stage-num>01</span>
+            <strong data-stage-label>bar & island</strong>
+          </span>
+          <span class="stage-meta-detail" data-stage-detail>style dynamic / flat / island / islands / pills / notch</span>
+        </div>
+      </div>
+
+      <div class="showcase-tabs" role="tablist" aria-label="Interface demonstrations">
+        {tabs.map((tab, index) => (
+          <button
+            class:list={['showcase-tab', { 'is-active': index === 0 }]}
+            id={`tab-${tab.id}`}
+            role="tab"
+            type="button"
+            aria-selected={index === 0 ? 'true' : 'false'}
+            aria-controls={`panel-${tab.id}`}
+            tabindex={index === 0 ? 0 : -1}
+            data-tab={tab.id}
+            data-label={tab.label}
+            data-num={tab.num}
+            data-detail={tab.detail}
+          >
+            <span class="num">{tab.num}</span>
+            <span class="tab-body">
+              <span class="t">{tab.label}</span>
+              <span class="d">{tab.description}</span>
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,137 @@
+{
+  "widgets": {
+    "weather": {
+      "enabled": true,
+      "x": 1564,
+      "y": 608,
+      "scale": 1.0
+    },
+    "media": {
+      "enabled": false,
+      "x": 957,
+      "y": 607,
+      "scale": 1.0
+    },
+    "resources": {
+      "enabled": true,
+      "x": 1388,
+      "y": 79,
+      "scale": 0.873
+    },
+    "usercard": {
+      "enabled": true,
+      "x": 1538,
+      "y": 81
+    },
+    "calendar": {
+      "enabled": false,
+      "x": 1488,
+      "y": 607
+    },
+    "visualizer": {
+      "enabled": true,
+      "x": 0,
+      "y": 1040,
+      "w": 1920,
+      "h": 40,
+      "style": "bars",
+      "flip": false
+    },
+    "battery": {
+      "enabled": false,
+      "x": 779,
+      "y": 471,
+      "scale": 0.937,
+      "opacity": 1.0,
+      "bg": 1.0
+    },
+    "todo": {
+      "enabled": false
+    },
+    "focus": {
+      "enabled": false
+    },
+    "notes": {
+      "enabled": false
+    },
+    "gauge": {
+      "enabled": false,
+      "x": 528,
+      "y": 333,
+      "scale": 1.0
+    },
+    "date": {
+      "enabled": true,
+      "x": 865,
+      "y": 425,
+      "scale": 1.0
+    },
+    "sky": {
+      "enabled": true,
+      "x": 850,
+      "y": 795,
+      "scale": 1.0
+    },
+    "nowring": {
+      "enabled": false
+    },
+    "player": {
+      "enabled": true,
+      "x": 1549,
+      "y": 219,
+      "scale": 1.0
+    },
+    "playpill": {
+      "enabled": false
+    },
+    "lyrics": {
+      "enabled": false
+    },
+    "storage": {
+      "enabled": false
+    },
+    "trio": {
+      "enabled": false
+    }
+  },
+  "clock": {
+    "enabled": true,
+    "onlyLocked": false,
+    "placement": "draggable",
+    "style": "digital",
+    "font": "unbounded",
+    "x": 860,
+    "y": 94,
+    "scale": 1.0
+  },
+  "dock": {
+    "enabled": true,
+    "position": "bottom",
+    "background": true,
+    "hover": true,
+    "pinnedStartup": false,
+    "media": true,
+    "nowText": true,
+    "pinButton": true,
+    "appsButton": true,
+    "tint": false,
+    "appMenu": true,
+    "opacity": 0.78,
+    "blur": true,
+    "apps": [
+      "kitty",
+      "firefox",
+      "org.gnome.Nautilus"
+    ]
+  },
+  "lock": {
+    "toolbars": false,
+    "widgets": false,
+    "media": false
+  },
+  "widgetBlur": true,
+  "widgetTheme": "onyx",
+  "widgetAdapt": true,
+  "autoHide": false,
+  "editing": false
+}

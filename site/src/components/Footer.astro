@@ -1,0 +1,113 @@
+---
+import { ArrowUpRight, Send } from '@lucide/astro';
+import BrandGithub from './BrandGithub.astro';
+import Logo from './Logo.astro';
+import { site } from '../data/site';
+
+const year = new Date().getFullYear();
+
+const columns = [
+  {
+    title: 'product',
+    links: [
+      { label: "what's new", href: '#whats-new' },
+      { label: 'previews', href: '#previews' },
+      { label: 'interface', href: '#interface' },
+      { label: 'features', href: '#features' },
+      { label: 'experience', href: '#experience' },
+      { label: 'install', href: '#install' },
+      { label: 'faq', href: '#faq' },
+    ],
+  },
+  {
+    title: 'project',
+    links: [
+      { label: 'github', href: site.github, external: true },
+      { label: 'release v1.1', href: site.releases, external: true },
+      { label: 'install docs', href: site.installDocs, external: true },
+      { label: 'license', href: site.license, external: true },
+    ],
+  },
+  {
+    title: 'community',
+    links: [
+      { label: 'telegram', href: site.telegram, external: true },
+      { label: 'blvcksyxx.xyz', href: site.personal, external: true },
+      { label: 'issues', href: site.githubIssues, external: true },
+    ],
+  },
+] as const;
+---
+
+<footer class="site-footer">
+  <div class="footer-halo" aria-hidden="true"></div>
+  <div class="container footer-inner">
+    <div class="footer-top">
+      <div class="footer-brand">
+        <a class="footer-logo" href="/" aria-label="blvcksyxx shell — home">
+          <Logo class="footer-mark" />
+          <span>blvcksyxx <em>shell</em></span>
+        </a>
+        <p class="footer-statement">
+          A complete Linux desktop experience.<br />
+          Built with Quickshell, for Hyprland and niri.
+        </p>
+        <div class="footer-actions">
+          <a class="btn btn-ghost" href={site.github} target="_blank" rel="noopener noreferrer">
+            <BrandGithub size={15} />
+            github
+          </a>
+          <a class="btn btn-ghost" href={site.telegram} target="_blank" rel="noopener noreferrer">
+            <Send size={15} stroke-width={1.7} />
+            telegram
+          </a>
+        </div>
+      </div>
+
+      <div class="footer-columns">
+        {columns.map((column) => (
+          <nav class="footer-col" aria-label={column.title}>
+            <h2>{column.title}</h2>
+            <ul>
+              {column.links.map((link) => (
+                <li>
+                  <a
+                    href={link.href}
+                    {...('external' in link && link.external
+                      ? { target: '_blank', rel: 'noopener noreferrer' }
+                      : {})}
+                  >
+                    {link.label}
+                    {'external' in link && link.external && (
+                      <ArrowUpRight size={12} stroke-width={1.7} aria-hidden="true" />
+                    )}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        ))}
+      </div>
+    </div>
+
+    <div class="footer-island" aria-hidden="true">
+      <span class="footer-island-time">09:41</span>
+      <span class="footer-island-sep"></span>
+      <span class="footer-island-note">your desktop. your rules.</span>
+      <span class="footer-island-live"><i></i> shell {site.version}</span>
+    </div>
+
+    <div class="footer-wordmark" aria-hidden="true">blvcksyxx</div>
+
+    <div class="footer-bottom">
+      <p>© {year} blvcksyxx shell · MIT licensed</p>
+      <p class="footer-legal">MIT licensed · free and open source</p>
+      <p class="footer-made">
+        <a href={site.personal} target="_blank" rel="noopener noreferrer">
+          blvcksyxx.xyz
+          <ArrowUpRight size={12} stroke-width={1.7} aria-hidden="true" />
+        </a>
+      </p>
+    </div>
+  </div>
+</footer>

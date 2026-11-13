@@ -1,0 +1,35 @@
+---
+import Base from '../layouts/Base.astro';
+import { ArrowLeft } from '@lucide/astro';
+import BrandGithub from '../components/BrandGithub.astro';
+import { site } from '../data/site';
+---
+
+<Base
+  title="page not found — blvcksyxx shell"
+  description="This page does not exist. Return to the blvcksyxx shell home page."
+  noindex
+>
+  <section class="section notfound" aria-labelledby="notfound-title">
+    <div class="container notfound-inner">
+      <p class="eyebrow"><span class="dot" aria-hidden="true"></span>404 / lost surface</p>
+      <h1 id="notfound-title" class="notfound-code">404</h1>
+      <p class="notfound-copy">
+        This surface is not part of the shell. The desktop is still where you left it.
+      </p>
+      <div class="notfound-actions">
+        <a class="btn btn-primary" href="/">
+          <ArrowLeft size={16} stroke-width={1.8} />
+          back to the shell
+        </a>
+        <a class="btn btn-ghost" href={site.github} target="_blank" rel="noopener noreferrer">
+          <BrandGithub size={16} />
+          github
+        </a>
+      </div>
+      <div class="notfound-island" aria-hidden="true">
+        <span>09:41</span><i></i><span>nothing here</span><i></i><span>empty workspace</span>
+      </div>
+    </div>
+  </section>
+</Base>

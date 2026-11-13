@@ -1,0 +1,41 @@
+name: CI
+on:
+  push:
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: ShellCheck
+        run: |
+          sudo apt-get update && sudo apt-get install -y shellcheck
+          shellcheck -x install.sh install/lib/*.sh
+      - name: Python scripts compile
+        run: |
+          for f in bin/*; do
+            if head -n1 "$f" | grep -q python; then python3 -m py_compile "$f"; fi
+          done
+      - name: License file
+        run: |
+          test -s LICENSE
+          grep -q 'MIT License' LICENSE
+          grep -q 'Permission is hereby granted' LICENSE
+      - name: Installer dry run
+        run: BLVCKSYXX_ALLOW_ROOT=1 ./install.sh --yes --dry-run
+
+  platform-gate:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: macOS is rejected with a clear message
+        shell: bash
+        run: |
+          set +e
+          output="$(./install.sh --dry-run --yes 2>&1)"
+          code=$?
+          set -e
+          printf '%s\n' "$output"
+          test "$code" -eq 1
+          printf '%s\n' "$output" | grep -q "macOS is not supported by blvcksyxx shell"

@@ -1,0 +1,13 @@
+# blvcksyxx shell — https://shell.blvcksyxx.xyz
+# Everything public is meant to be indexed.
+
+User-agent: *
+Allow: /
+
+# Keep error pages and internal preview routes out of the index.
+Disallow: /404
+Disallow: /404.html
+Disallow: /__og-preview
+
+# Sitemap index: the home page plus image entries for every screenshot and wallpaper.
+Sitemap: https://shell.blvcksyxx.xyz/sitemap-index.xml

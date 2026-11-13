@@ -1,0 +1,57 @@
+---
+import { ArrowUpRight, Send } from '@lucide/astro';
+import BrandGithub from './BrandGithub.astro';
+import Logo from './Logo.astro';
+import { site } from '../data/site';
+---
+
+<section class="section final-cta" aria-labelledby="final-title">
+  <div class="container">
+    <div class="final-card" data-reveal>
+      <div class="final-rings" aria-hidden="true">
+        <i></i><i></i><i></i><i></i>
+      </div>
+      <div class="final-mark" aria-hidden="true"><Logo class="final-logo" /></div>
+
+      <p class="eyebrow final-eyebrow">
+        <span class="dot" aria-hidden="true"></span>
+        ready when you are
+      </p>
+      <h2 class="final-title" id="final-title">
+        your desktop<br />
+        <span class="outline-text">is waiting.</span>
+      </h2>
+      <p class="final-lede">
+        One shell, every surface. Install it in a minute, make it yours in an afternoon, and never
+        hunt through five config files again.
+      </p>
+      <div class="final-actions">
+        <a class="btn btn-primary" href={site.github} target="_blank" rel="noopener noreferrer">
+          <BrandGithub size={16} />
+          explore on github
+          <ArrowUpRight size={15} stroke-width={1.8} class="arrow" />
+        </a>
+        <a class="btn btn-ghost" href={site.telegram} target="_blank" rel="noopener noreferrer">
+          <Send size={15} stroke-width={1.7} />
+          join telegram
+        </a>
+      </div>
+
+      <div class="final-island" aria-hidden="true">
+        <span class="final-island-time">09:41</span>
+        <span class="final-island-weather">14°</span>
+        <span class="wavebars"><i></i><i></i><i></i><i></i><i></i></span>
+        <span class="final-island-note">all surfaces, one shell</span>
+        <span class="final-island-arrow">↗</span>
+      </div>
+
+      <div class="final-meta mono">
+        <span>MIT licensed</span>
+        <span>·</span>
+        <span>v1.1 stable</span>
+        <span>·</span>
+        <span>Hyprland + niri</span>
+      </div>
+    </div>
+  </div>
+</section>

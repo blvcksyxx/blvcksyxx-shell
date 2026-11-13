@@ -1,0 +1,73 @@
+---
+import { ArrowUpRight, MessageCircleQuestionMark, Plus, Send } from '@lucide/astro';
+import { faqs, site } from '../data/site';
+
+const faqSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: faqs.map((faq) => ({
+    '@type': 'Question',
+    name: faq.q,
+    acceptedAnswer: {
+      '@type': 'Answer',
+      text: faq.a,
+    },
+  })),
+};
+---
+
+<section class="section faq" id="faq" aria-labelledby="faq-title">
+  <div class="container">
+    <div class="faq-grid">
+      <div class="faq-intro">
+        <p class="eyebrow" data-reveal>
+          <span class="dot" aria-hidden="true"></span>
+          faq
+          <span class="slash" aria-hidden="true">/</span>
+          before you ask
+        </p>
+        <h2 id="faq-title" data-reveal>questions,<br />answered.</h2>
+        <p class="lede" data-reveal>
+          The short version: yes, it backs up your files; no, you do not need to edit configs; and
+          yes, it is free and open source.
+        </p>
+
+        <div class="faq-contact" data-reveal>
+          <div class="faq-contact-head">
+            <MessageCircleQuestionMark size={18} stroke-width={1.6} />
+            <p>still unsure?</p>
+          </div>
+          <p class="faq-contact-copy">
+            Open an issue with your installer log, or ask in the Telegram channel. CachyOS and Fedora
+            support are new and get fixed fast.
+          </p>
+          <div class="faq-contact-links">
+            <a href={site.githubIssues} target="_blank" rel="noopener noreferrer">
+              open an issue <ArrowUpRight size={13} stroke-width={1.8} />
+            </a>
+            <a href={site.telegram} target="_blank" rel="noopener noreferrer">
+              telegram <Send size={13} stroke-width={1.8} />
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <div class="faq-list" data-reveal>
+        {faqs.map((faq, index) => (
+          <details class="faq-item" name="faq">
+            <summary>
+              <span class="faq-num mono">{String(index + 1).padStart(2, '0')}</span>
+              <span class="faq-q">{faq.q}</span>
+              <span class="faq-icon" aria-hidden="true"><Plus size={16} stroke-width={1.8} /></span>
+            </summary>
+            <div class="faq-a">
+              <p>{faq.a}</p>
+            </div>
+          </details>
+        ))}
+      </div>
+    </div>
+  </div>
+
+  <script type="application/ld+json" set:html={JSON.stringify(faqSchema)} />
+</section>

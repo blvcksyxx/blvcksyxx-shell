@@ -1,0 +1,291 @@
+---
+import {
+  Bell,
+  BellOff,
+  Bluetooth,
+  Coffee,
+  Folder,
+  Gamepad2,
+  Globe,
+  LayoutGrid,
+  LockKeyhole,
+  MoonStar,
+  AudioLines,
+  Palette,
+  Plane,
+  Search,
+  Settings,
+  SlidersHorizontal,
+  Sparkles,
+  Sun,
+  Terminal,
+  Wifi,
+} from '@lucide/astro';
+---
+
+<section class="section features" id="features" aria-labelledby="features-title">
+  <div class="container">
+    <div class="section-head">
+      <p class="eyebrow" data-reveal>
+        <span class="dot" aria-hidden="true"></span>
+        features
+        <span class="slash" aria-hidden="true">/</span>
+        day one
+      </p>
+      <div class="head-copy">
+        <h2 id="features-title" data-reveal>built to be used,<br />not configured.</h2>
+      </div>
+      <div class="head-side">
+        <p class="lede" data-reveal>
+          Everything lives behind a slider, a switch or one keystroke. These are the parts you meet
+          on the first day — and the details you keep noticing in month six.
+        </p>
+        <p class="showcase-hint" data-reveal>
+          <span class="pill">no config editing</span>
+          <span class="mono">settings, not dotfiles</span>
+        </p>
+      </div>
+    </div>
+
+    <div class="feature-grid">
+      <article class="feature-card feature-island" data-reveal data-spot>
+        <div class="feature-top">
+          <span class="feature-icon"><Sparkles size={17} stroke-width={1.6} /></span>
+          <p class="feature-kicker">01 / dynamic island</p>
+        </div>
+        <div class="feature-visual fv-island" aria-hidden="true">
+          <div class="fv-island-row">
+            <span class="fv-island-chip is-live">
+              <span class="island-time">09:41</span>
+              <span class="island-weather"><Sun size={10} stroke-width={1.8} /> 14°</span>
+            </span>
+            <span class="fv-island-chip">
+              <span class="wavebars"><i></i><i></i><i></i><i></i><i></i></span>
+              night drive
+            </span>
+            <span class="fv-island-chip">
+              <span class="island-notif-dot"></span>
+              update ready
+            </span>
+          </div>
+          <div class="fv-player">
+            <span class="album-art"><AudioLines size={15} stroke-width={1.5} /></span>
+            <span class="player-copy">
+              <span class="player-title">night drive</span>
+              <span class="player-sub">ambient sessions</span>
+              <span class="player-progress">
+                <span class="player-track"><i></i></span>
+              </span>
+            </span>
+            <span class="fv-player-time mono">02:14</span>
+          </div>
+        </div>
+        <div class="feature-copy">
+          <h3>the island is the bar.</h3>
+          <p>
+            It starts as your clock, then grows into the player, volume, workspaces, notifications,
+            today and screen recording. Seven bar styles, one continuous surface.
+          </p>
+        </div>
+        <div class="feature-tags">
+          <span>player</span><span>volume</span><span>workspaces</span><span>today</span>
+        </div>
+      </article>
+
+      <article class="feature-card feature-control" data-reveal data-spot>
+        <div class="feature-top">
+          <span class="feature-icon"><SlidersHorizontal size={17} stroke-width={1.6} /></span>
+          <p class="feature-kicker">02 / control center</p>
+        </div>
+        <div class="feature-visual fv-control" aria-hidden="true">
+          <div class="fv-slider">
+            <span class="mono">vol</span>
+            <span class="cc-track"><i style="width: 64%"></i></span>
+            <span class="mono">64</span>
+          </div>
+          <div class="fv-slider">
+            <span class="mono">lux</span>
+            <span class="cc-track"><i style="width: 82%"></i></span>
+            <span class="mono">82</span>
+          </div>
+          <div class="fv-toggles">
+            <span class="fv-toggle is-on"><Wifi size={12} stroke-width={1.8} />wi-fi</span>
+            <span class="fv-toggle is-on"><Bluetooth size={12} stroke-width={1.8} />bt</span>
+            <span class="fv-toggle"><Plane size={12} stroke-width={1.8} />plane</span>
+            <span class="fv-toggle"><MoonStar size={12} stroke-width={1.8} />night</span>
+            <span class="fv-toggle"><Coffee size={12} stroke-width={1.8} />awake</span>
+            <span class="fv-toggle is-on"><BellOff size={12} stroke-width={1.8} />dnd</span>
+          </div>
+        </div>
+        <div class="feature-copy">
+          <h3>the everyday, one click deep.</h3>
+          <p>
+            Switches, sliders, media with a wavy seek line and your notifications. Smooth Material 3
+            motion, opened with <span class="kbd">SUPER</span> <span class="kbd">N</span>.
+          </p>
+        </div>
+      </article>
+
+      <article class="feature-card feature-widgets" data-reveal data-spot>
+        <div class="feature-top">
+          <span class="feature-icon"><LayoutGrid size={17} stroke-width={1.6} /></span>
+          <p class="feature-kicker">03 / desktop widgets</p>
+        </div>
+        <div class="feature-visual fv-widgets" aria-hidden="true">
+          <div class="fv-clock">09:41<span>thursday</span></div>
+          <div class="fv-rings">
+            <div class="rings"><span class="ring"></span></div>
+            <div class="rings-copy"><span>CPU 38%</span><span>RAM 62%</span><span>GPU 21%</span></div>
+          </div>
+        </div>
+        <div class="feature-copy">
+          <h3>frosted glass, quietly useful.</h3>
+          <p>
+            Clock, calendar, weather, resources, music, notes, a focus timer and a visualizer — over
+            a blurred wallpaper, out of the way when windows open.
+          </p>
+        </div>
+      </article>
+
+      <article class="feature-card feature-notifs" data-reveal data-spot>
+        <div class="feature-top">
+          <span class="feature-icon"><Bell size={17} stroke-width={1.6} /></span>
+          <p class="feature-kicker">04 / notifications</p>
+        </div>
+        <div class="feature-visual fv-notifs" aria-hidden="true">
+          <div class="fv-notif">
+            <span class="cc-notif-icon"><Bell size={9} stroke-width={1.8} /></span>
+            <span>
+              <span class="cc-notif-title">New version ready</span>
+              <span class="cc-notif-text">blvcksyxx shell v1 · install when ready</span>
+            </span>
+            <span class="cc-notif-time">now</span>
+          </div>
+          <div class="fv-notif">
+            <span class="cc-notif-icon"><AudioLines size={9} stroke-width={1.8} /></span>
+            <span>
+              <span class="cc-notif-title">night drive</span>
+              <span class="cc-notif-text">ambient sessions · playing</span>
+            </span>
+            <span class="cc-notif-time">2m</span>
+          </div>
+        </div>
+        <div class="feature-copy">
+          <h3>alerts that look like they belong.</h3>
+          <p>
+            App icon in your shape, pictures, actions and a line that shows how long they stay.
+            Google style, or swaync one click away.
+          </p>
+        </div>
+      </article>
+
+      <article class="feature-card feature-launcher" data-reveal data-spot>
+        <div class="feature-top">
+          <span class="feature-icon"><Search size={17} stroke-width={1.6} /></span>
+          <p class="feature-kicker">05 / launcher</p>
+        </div>
+        <div class="feature-visual fv-launcher" aria-hidden="true">
+          <div class="fv-search"><Search size={12} stroke-width={1.8} /><span>search apps</span><kbd>esc</kbd></div>
+          <div class="fv-apps">
+            <span><Terminal size={14} stroke-width={1.7} /></span>
+            <span class="is-sel"><Search size={14} stroke-width={1.7} /></span>
+            <span><Folder size={14} stroke-width={1.7} /></span>
+            <span><Globe size={14} stroke-width={1.7} /></span>
+            <span><Settings size={14} stroke-width={1.7} /></span>
+          </div>
+        </div>
+        <div class="feature-copy">
+          <h3>five looks. four layouts.</h3>
+          <p>
+            List, grid, full-width or split. Search, pin, resize and blur it. <span class="kbd">ALT</span>{' '}
+            <span class="kbd">Space</span> away.
+          </p>
+        </div>
+      </article>
+
+      <article class="feature-card feature-theme" data-reveal data-spot>
+        <div class="feature-top">
+          <span class="feature-icon"><Palette size={17} stroke-width={1.6} /></span>
+          <p class="feature-kicker">06 / appearance</p>
+        </div>
+        <div class="feature-visual fv-theme" aria-hidden="true">
+          <div class="fv-theme-row">
+            <span class="fv-swatch is-on"><i style="background: #f4f4f2"></i>Mono</span>
+            <span class="fv-swatch"><i style="background: #b9b9b4"></i>Slate</span>
+            <span class="fv-swatch"><i style="background: #8b8b86"></i>Stone</span>
+            <span class="fv-swatch"><i style="background: #5d5d59"></i>Steel</span>
+            <span class="fv-swatch"><i style="background: #3c3c39"></i>Ash</span>
+            <span class="fv-swatch"><i style="background: #20201e"></i>Ink</span>
+          </div>
+          <div class="fv-theme-preview">
+            <span class="fv-theme-bar"></span>
+            <span class="fv-theme-panel"><i></i><i></i><i></i></span>
+            <span class="fv-theme-meta mono">21 schemes · colors follow your wallpaper</span>
+          </div>
+        </div>
+        <div class="feature-copy">
+          <h3>yours, down to the corners.</h3>
+          <p>
+            Twenty-one color schemes including six monochrome, plus fonts, shapes, type scale,
+            sounds and motion. Every role is editable.
+          </p>
+        </div>
+        <div class="feature-tags">
+          <span>colors</span><span>fonts</span><span>components</span><span>motion</span>
+        </div>
+      </article>
+
+      <article class="feature-card feature-game" data-reveal data-spot>
+        <div class="feature-top">
+          <span class="feature-icon"><Gamepad2 size={17} stroke-width={1.6} /></span>
+          <p class="feature-kicker">07 / game bar</p>
+        </div>
+        <div class="feature-visual fv-game" aria-hidden="true">
+          <div class="fv-stat-row">
+            <span class="fv-stat"><strong>54°</strong><span>CPU</span></span>
+            <span class="fv-stat"><strong>61°</strong><span>GPU</span></span>
+            <span class="fv-stat"><strong>32</strong><span>ms</span></span>
+          </div>
+          <div class="fv-game-toggle">
+            <span class="settings-switch is-on"><i></i> gaming mode</span>
+            <span class="fv-game-pill">SUPER + G</span>
+          </div>
+        </div>
+        <div class="feature-copy">
+          <h3>the desktop steps aside.</h3>
+          <p>
+            CPU and GPU heat, RAM, ping, screenshot, record, mic and power — over your game. One
+            switch drops blur and transparency when you need the frames.
+          </p>
+        </div>
+      </article>
+
+      <article class="feature-card feature-lock" data-reveal data-spot>
+        <div class="feature-top">
+          <span class="feature-icon"><LockKeyhole size={17} stroke-width={1.6} /></span>
+          <p class="feature-kicker">08 / lock screen</p>
+        </div>
+        <div class="feature-visual fv-lock" aria-hidden="true">
+          <div class="fv-lock-time">09:41</div>
+          <div class="fv-lock-chips">
+            <span>14°</span><span>84%</span><span>2 alerts</span>
+          </div>
+          <div class="fv-lock-pass"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="fv-lock-music"><span class="wavebars"><i></i><i></i><i></i><i></i><i></i></span> night drive</div>
+        </div>
+        <div class="feature-copy">
+          <h3>a real goodbye to the session.</h3>
+          <p>
+            Your wallpaper blurred, a big clock, weather, battery and resource chips, the music with
+            a wavy line, and a password made of shapes.
+          </p>
+        </div>
+      </article>
+    </div>
+
+    <p class="feature-foot mono" data-reveal>
+      plus a wallpaper picker, a search over every setting, distro logos, cursors, idle timers and a
+      welcome tour.
+    </p>
+  </div>
+</section>

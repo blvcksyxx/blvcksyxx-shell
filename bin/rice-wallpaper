@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# Wallpaper menu (SUPER + W when the dashboard is off): every wallpaper of your folders and Waypaper's,
+# in a rofi list. Colors follow (rice-walls set). The dashboard's Wallpaper tab is the main picker.
+set -u
+BIN="${HOME}/.local/bin"
+WALLS="$BIN/rice-walls"
+[ -x "$WALLS" ] || { echo "rice-wallpaper: rice-walls not found" >&2; exit 1; }
+if ! command -v rofi >/dev/null 2>&1; then
+  command -v waypaper >/dev/null 2>&1 && exec waypaper
+  echo "rice-wallpaper: install rofi (or Waypaper)" >&2
+  exit 1
+fi
+mapfile -t rows < <(python3 - "$WALLS" <<'PY'
+import json, subprocess, sys
+try:
+    data = json.loads(subprocess.run([sys.argv[1], "list"], capture_output=True, text=True, timeout=60).stdout or "{}")
+except Exception:
+    data = {}
+current = data.get("current", "")
+for w in data.get("walls", []):
+    mark = "* " if w.get("path") == current else "  "
+    live = "  (live)" if w.get("live") else ""
+    print("%s%s%s\t%s" % (mark, w.get("name") or w["path"], live, w["path"]))
+PY
+)
+[ "${#rows[@]}" -gt 0 ] || { echo "rice-wallpaper: no wallpapers found (add a folder in Settings > Wallpaper)" >&2; exit 1; }
+names=(); paths=()
+for r in "${rows[@]}"; do names+=("${r%%$'\t'*}"); paths+=("${r#*$'\t'}"); done
+i="$(printf '%s\n' "${names[@]}" | rofi -dmenu -i -p 'Wallpaper' -format i)" || exit 0
+[[ "$i" =~ ^[0-9]+$ ]] || exit 0
+setsid -f "$WALLS" set "${paths[$i]}" >/dev/null 2>&1

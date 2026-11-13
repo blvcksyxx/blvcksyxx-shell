@@ -1,0 +1,13 @@
+{
+  "opts": {},
+  "borders": {},
+  "anim": {},
+  "monitors": {},
+  "binds": [],
+  "autostart": [],
+  "kbd": {
+    "layouts": "us,ru",
+    "variants": "",
+    "options": "grp:win_space_toggle"
+  }
+}
