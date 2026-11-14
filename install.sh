@@ -182,6 +182,28 @@ missing_cmds() {
 }
 # run a tool with a time limit so one stuck program can never freeze the installer
 t() { timeout "${T:-25}" "$@"; }
+SIGNERS="$ROOT/install/trusted-signers"
+# verify_update SHA: an update must be a signed release tag or a signed commit from the project key.
+# The fetch happens first; the exact commit that was verified is the one that gets checked out.
+verify_update() {
+  local sha="$1" tag
+  [ -n "$sha" ] || { fail "Could not find the update commit."; return 1; }
+  [ -f "$SIGNERS" ] || { fail "The signature trust file is missing: $SIGNERS"; return 1; }
+  command -v ssh-keygen >/dev/null 2>&1 || { fail "ssh-keygen is needed to verify signed updates."; return 1; }
+  for tag in $(git -C "$ROOT" tag --points-at "$sha" --list 'v*' 2>/dev/null); do
+    if git -C "$ROOT" -c "gpg.ssh.allowedSignersFile=$SIGNERS" verify-tag "$tag" >>"$LOG" 2>&1; then
+      ok "Verified signed release tag $tag"
+      return 0
+    fi
+  done
+  if git -C "$ROOT" -c "gpg.ssh.allowedSignersFile=$SIGNERS" verify-commit "$sha" >>"$LOG" 2>&1; then
+    ok "Verified signed commit ${sha:0:7}"
+    return 0
+  fi
+  fail "The update from GitHub is not signed by blvcksyxx shell's release key."
+  note "Nothing was changed. See SECURITY.md; for a manual download, verify SHA256SUMS first."
+  return 1
+}
 # start something in the background, detached from the installer
 detach() { setsid -f "$@" >/dev/null 2>&1 </dev/null || true; }
 config_dirs() { local d; for d in "$ROOT"/config/*/; do [ -d "$d" ] && basename "$d"; done; }
@@ -268,15 +290,19 @@ fedora_pick() {
 }
 
 # matugen from its GitHub releases (Fedora 43 and older have no package): ~/.local/bin/matugen
+# Pinned release + SHA-256: a changed upstream "latest" cannot replace this binary silently.
+MATUGEN_VERSION="v4.2.0"
+MATUGEN_SHA_X86_64="a2e3b50e49ed6439999ba3c252ed04fabd98ee4e9d12e5e5dff2e66370569751"
 matugen_download() {
-  local arch url d
+  local arch asset sha url d
   arch="$(uname -m)"
-  url="$(curl -fsSL --max-time 20 https://api.github.com/repos/InioX/matugen/releases/latest 2>/dev/null |
-         grep -oE '"browser_download_url": *"[^"]+"' | grep -oE 'https://[^"]+' |
-         grep -iE "${arch}.*\.tar\.gz$" | head -1)"
-  [ -n "$url" ] || return 1
+  case "$arch" in
+    x86_64|amd64) asset="matugen-4.2.0-x86_64.tar.gz"; sha="$MATUGEN_SHA_X86_64" ;;
+    *) warn "matugen: no pinned build for $arch"; return 1 ;;
+  esac
+  url="https://github.com/InioX/matugen/releases/download/$MATUGEN_VERSION/$asset"
   d="$(mktemp -d)"
-  if curl -fsSL --max-time 120 -o "$d/m.tar.gz" "$url" && tar -xzf "$d/m.tar.gz" -C "$d" 2>/dev/null; then
+  if "$ROOT/bin/rice-download" "$url" "$d/m.tar.gz" "$sha" && tar -xzf "$d/m.tar.gz" -C "$d" 2>/dev/null; then
     local bin; bin="$(find "$d" -type f -name matugen | head -1)"
     if [ -n "$bin" ]; then mkdir -p "$HOME/.local/bin"; install -m 755 "$bin" "$HOME/.local/bin/matugen"; rm -rf "$d"; return 0; fi
   fi
@@ -454,8 +480,11 @@ step_packages() {
   esac
 }
 
+BIBATA_THEME="Bibata-Modern-Ice"
+BIBATA_VERSION="v2.0.7"
+BIBATA_SHA="a68cae60c4dc706350e194ebc91c5fe48bc7bc9d59e119555834a2a7ee5078ef"
 set_look() {
-  local theme=Bibata-Modern-Ice icons=Papirus-Dark gtk=adw-gtk3-dark f
+  local theme="$BIBATA_THEME" icons=Papirus-Dark gtk=adw-gtk3-dark f
   [ -d /usr/share/themes/adw-gtk3-dark ] || gtk=Adwaita-dark
   mkdir -p "$HOME/.icons/default" "$HOME/.config/gtk-3.0" "$HOME/.config/gtk-4.0"
   printf '[Icon Theme]\nName=Default\nInherits=%s\n' "$theme" >"$HOME/.icons/default/index.theme"
@@ -473,9 +502,14 @@ set_look() {
   fi
   # Bibata is not packaged everywhere (Fedora): download it for this user when it is missing
   if [ ! -d "/usr/share/icons/$theme" ] && [ ! -d "$HOME/.local/share/icons/$theme" ] && [ ! -d "$HOME/.icons/$theme" ]; then
-    mkdir -p "$HOME/.local/share/icons"
-    curl -fsSL -m 120 "https://github.com/ful1e5/Bibata_Cursor/releases/latest/download/$theme.tar.xz" |
-      tar -xJ -C "$HOME/.local/share/icons" 2>/dev/null || echo "could not download the $theme cursor"
+    local bd; bd="$(mktemp -d)"
+    if "$ROOT/bin/rice-download" "https://github.com/ful1e5/Bibata_Cursor/releases/download/$BIBATA_VERSION/$theme.tar.xz" "$bd/cursor.tar.xz" "$BIBATA_SHA" &&
+       mkdir -p "$HOME/.local/share/icons" && tar -xJf "$bd/cursor.tar.xz" -C "$HOME/.local/share/icons" 2>/dev/null; then
+      :
+    else
+      echo "could not download the $theme cursor"
+    fi
+    rm -rf "$bd"
   fi
   # a theme folder that has no cursors inside (a broken package) is no theme: rice-cursor gets a working one
   [ -f "$HOME/.config/rice/cursor.json" ] || { mkdir -p "$HOME/.config/rice"; echo '{"theme": "Bibata-Modern-Ice", "size": 24}' >"$HOME/.config/rice/cursor.json"; }
@@ -889,39 +923,53 @@ fi
 
 if [ "$MODE" = update ]; then
   title "Update"
-  if [ "$PULLED" = 1 ]; then ok "Got the newest version"
+  if [ "$PULLED" = 1 ]; then
+    if [ -d "$ROOT/.git" ] && [ "$DRY_RUN" != 1 ]; then
+      command -v git >/dev/null 2>&1 || { fail "git is needed to verify this update."; exit 1; }
+      verify_update "$(git -C "$ROOT" rev-parse HEAD 2>/dev/null || true)" || exit 1
+    fi
+    ok "Got the newest version"
   elif [ -d "$ROOT/.git" ] && command -v git >/dev/null 2>&1; then
     old="$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo ?)"
-    if [ "$DRY_RUN" = 1 ]; then info "would run: git pull"
-    elif { u="$(git -C "$ROOT" remote get-url origin 2>/dev/null)"; case "$u" in *blvcksyxx/blvcksyxx-shell*) git -C "$ROOT" remote set-url origin https://github.com/blvcksyxx/blvcksyxx-shell.git ;; esac
-           GIT_TERMINAL_PROMPT=0 GCM_INTERACTIVE=never git -c credential.helper= -C "$ROOT" pull --ff-only >>"$LOG" 2>&1; }; then
-      new="$(git -C "$ROOT" rev-parse --short HEAD)"
-      if [ "$old" != "$new" ]; then
-        # new files from GitHub, maybe a new installer too: start the new one
-        exec "$ROOT/install.sh" --update --pulled "$@"
-      fi
+    if [ "$DRY_RUN" = 1 ]; then info "would fetch and verify the signed update, then fast-forward"
     else
-      # the pull did not go (files changed in the repo, or its history went another way). It used to carry on with
-      # the old files and say it was done, so the version never moved (Settings > Update Center looked like it
-      # updated and nothing changed). Now: what you changed is kept (a stash and a branch), and the repo is set to
-      # GitHub's newest version
-      info "git pull did not go through; keeping your changes aside and taking GitHub's version"
-      gq() { GIT_TERMINAL_PROMPT=0 GCM_INTERACTIVE=never git -c credential.helper= -C "$ROOT" "$@" >>"$LOG" 2>&1; }
+      u="$(git -C "$ROOT" remote get-url origin 2>/dev/null)"
+      case "$u" in *blvcksyxx/blvcksyxx-shell*) git -C "$ROOT" remote set-url origin https://github.com/blvcksyxx/blvcksyxx-shell.git ;; esac
       up="$(git -C "$ROOT" rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null || echo origin/main)"
-      if gq fetch origin; then
-        stamp="$(date +%Y%m%d-%H%M%S)"
-        gq branch "rice-before-update-$stamp" HEAD || true
-        gq stash push -u -m "rice: your changes before the update of $stamp" || true
-        if gq reset --hard "$up"; then
-          ok "Took the newest version (your old state: branch rice-before-update-$stamp, and git stash list)"
-          exec "$ROOT/install.sh" --update --pulled "$@"
+      gq() { GIT_TERMINAL_PROMPT=0 GCM_INTERACTIVE=never git -c credential.helper= -C "$ROOT" "$@" >>"$LOG" 2>&1; }
+      info "Fetching and verifying the update..."
+      if gq fetch --tags --force origin; then
+        up_sha="$(git -C "$ROOT" rev-parse "$up" 2>/dev/null || true)"
+        if ! verify_update "$up_sha"; then
+          exit 1
         fi
+        if gq merge --ff-only "$up_sha"; then
+          new="$(git -C "$ROOT" rev-parse --short HEAD)"
+          if [ "$old" != "$new" ]; then
+            # new files from GitHub, maybe a new installer too: start the new one
+            exec "$ROOT/install.sh" --update --pulled "$@"
+          fi
+        else
+          # the fast-forward did not go (files changed in the repo, or its history went another way). What you
+          # changed is kept (a stash and a branch), and the repo is set to the verified GitHub commit.
+          info "The fast-forward did not go through; keeping your changes aside and taking GitHub's version"
+          stamp="$(date +%Y%m%d-%H%M%S)"
+          gq branch "rice-before-update-$stamp" HEAD || true
+          gq stash push -u -m "rice: your changes before the update of $stamp" || true
+          if gq reset --hard "$up_sha"; then
+            ok "Took the newest version (your old state: branch rice-before-update-$stamp, and git stash list)"
+            exec "$ROOT/install.sh" --update --pulled "$@"
+          fi
+          fail "Could not check out the verified update. Nothing was changed."
+          exit 1
+        fi
+      else
+        if [ -n "${RICE_GUI:-}" ]; then
+          fail "Could not get the newest version from GitHub (offline?). Nothing was changed."
+          exit 1
+        fi
+        warn "Could not get the newest version from GitHub (offline?). Continuing with the files you have."
       fi
-      if [ -n "${RICE_GUI:-}" ]; then
-        fail "Could not get the newest version from GitHub (offline?). Nothing was changed."
-        exit 1
-      fi
-      warn "Could not get the newest version from GitHub (offline?). Continuing with the files you have."
     fi
   fi
 fi

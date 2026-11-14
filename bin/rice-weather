@@ -9,7 +9,7 @@ if [ "${1:-}" = json ]; then
   f="$HOME/.cache/rice/weather.json"
   mkdir -p "$HOME/.cache/rice"
   if [ -s "$f" ] && [ -n "$(find "$f" -mmin -30 2>/dev/null)" ]; then cat "$f"; exit 0; fi
-  raw="$(curl -s -m 12 "wttr.in/?format=j1&lang=en")" || { [ -s "$f" ] && cat "$f"; exit 1; }
+  raw="$(curl -s -m 12 "https://wttr.in/?format=j1&lang=en")" || { [ -s "$f" ] && cat "$f"; exit 1; }
   j="$(printf '%s' "$raw" | python3 -c '
 import json, sys, datetime
 f = sys.argv[1] == "u"
@@ -47,7 +47,7 @@ print(json.dumps(out))
   printf '%s\n' "$j"
   exit 0
 fi
-out="$(curl -s -m 10 "wttr.in/?format=%C|%t|%l&${unit}&lang=en")" || exit 1
+out="$(curl -s -m 10 "https://wttr.in/?format=%C|%t|%l&${unit}&lang=en")" || exit 1
 case "$out" in ""|*Unknown*|*"<"*|*"|"*"|"*"|"*) exit 1 ;; esac
 mkdir -p "$HOME/.cache/rice"
 printf '%s\n' "$out" > "$HOME/.cache/rice/weather.txt"

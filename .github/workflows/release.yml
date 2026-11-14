@@ -1,0 +1,65 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing signed tag to package
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  sign:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref_name }}
+          fetch-depth: 0
+
+      - name: Prepare the release signing key
+        env:
+          KEY: ${{ secrets.RELEASE_SIGNING_KEY }}
+        run: |
+          test -n "$KEY" || { echo "RELEASE_SIGNING_KEY is not set" >&2; exit 1; }
+          umask 077
+          printf '%s\n' "$KEY" > "$RUNNER_TEMP/signing-key"
+          ssh-keygen -y -f "$RUNNER_TEMP/signing-key" > "$RUNNER_TEMP/signing-key.pub"
+          printf 'blvcksyxx-release %s\n' "$(cat "$RUNNER_TEMP/signing-key.pub")" > "$RUNNER_TEMP/allowed_signers"
+          echo "TAG=${{ inputs.tag || github.ref_name }}" >> "$GITHUB_ENV"
+
+      - name: Verify the signed tag
+        run: |
+          git fetch --tags --force
+          git -c gpg.ssh.allowedSignersFile="$RUNNER_TEMP/allowed_signers" verify-tag "$TAG"
+
+      - name: Build and sign the release files
+        run: |
+          VERSION="$(tr -d ' \r\n' < VERSION)"
+          PREFIX="blvcksyxx-shell-$VERSION"
+          git archive --format=tar.gz --prefix="$PREFIX/" -o "$PREFIX.tar.gz" "$TAG"
+          sha256sum "$PREFIX.tar.gz" > SHA256SUMS
+          cp "$RUNNER_TEMP/allowed_signers" trusted-signers
+          ssh-keygen -Y sign -f "$RUNNER_TEMP/signing-key" -n blvcksyxx-release SHA256SUMS
+          printf 'Release files:\n'
+          ls -l "$PREFIX.tar.gz" SHA256SUMS SHA256SUMS.sig trusted-signers
+          printf '\nSHA256SUMS:\n'
+          cat SHA256SUMS
+
+      - name: Upload to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="$(tr -d ' \r\n' < VERSION)"
+          FILES="blvcksyxx-shell-$VERSION.tar.gz SHA256SUMS SHA256SUMS.sig trusted-signers"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" $FILES --clobber
+          else
+            gh release create "$TAG" $FILES --title "blvcksyxx shell $VERSION" --generate-notes
+          fi

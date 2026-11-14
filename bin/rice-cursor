@@ -21,7 +21,6 @@ import subprocess
 import sys
 import tarfile
 import tempfile
-import urllib.request
 import zipfile
 import zlib
 
@@ -42,16 +41,22 @@ ROLES = {
 DEFAULT = {"theme": "Bibata-Modern-Ice", "size": 24}
 ICONS = HOME + "/.local/share/icons"
 PACKS_DB = ICONS + "/.rice-cursor-packs.json"
-# cursor packs Settings > Cursors can download (and the installer does once)
+DOWNLOAD = os.path.join(os.path.dirname(os.path.abspath(__file__)), "rice-download")
+# Cursor packs Settings > Cursors can download (and the installer does once).
+# Every file is pinned to an exact release/commit and verified with SHA-256.
 PACKS = [
     {"id": "rose-pine", "name": "Rose Pine", "desc": "Soft, rounded Hyprcursor theme made for Hyprland",
-     "kind": "git", "url": "https://github.com/ndom91/rose-pine-hyprcursor"},
+     "kind": "zip", "url": "https://github.com/ndom91/rose-pine-hyprcursor/archive/4b02963d0baf0bee18725cf7c5762b3b3c1392f1.zip",
+     "sha256": "d0e5dcf52297a936ae04bddb7f2fe1f7d644674627d7b67ac87f734282c661f9"},
     {"id": "catppuccin-dark", "name": "Catppuccin Mocha Dark", "desc": "Dark Catppuccin cursors",
-     "kind": "zip", "url": "https://github.com/catppuccin/cursors/releases/latest/download/catppuccin-mocha-dark-cursors.zip"},
+     "kind": "zip", "url": "https://github.com/catppuccin/cursors/releases/download/v2.0.0/catppuccin-mocha-dark-cursors.zip",
+     "sha256": "a4d976491bdb1b1311b2de88327cad3f1c66c2d9da896e0c56362a660c802585"},
     {"id": "catppuccin-mauve", "name": "Catppuccin Mocha Mauve", "desc": "Catppuccin with a soft purple accent",
-     "kind": "zip", "url": "https://github.com/catppuccin/cursors/releases/latest/download/catppuccin-mocha-mauve-cursors.zip"},
+     "kind": "zip", "url": "https://github.com/catppuccin/cursors/releases/download/v2.0.0/catppuccin-mocha-mauve-cursors.zip",
+     "sha256": "971e113a49de65529b3b706ce8529c1c80f22b2828b9c2f4732b3363fb69fcbb"},
     {"id": "phinger", "name": "Phinger", "desc": "Clean, playful cursors in dark and light",
-     "kind": "tar", "url": "https://github.com/phisch/phinger-cursors/releases/latest/download/phinger-cursors-variants.tar.bz2"},
+     "kind": "tar", "url": "https://github.com/phisch/phinger-cursors/releases/download/v2.2/phinger-cursors-variants.tar.bz2",
+     "sha256": "46d4cfc30a38c19cada3339027b5a78f7b0bf74f3220eba7001c4fdd9d5a6e56"},
 ]
 
 
@@ -288,19 +293,36 @@ def xfallback(ts):
     return "Adwaita"
 
 
-BIBATA_URL = "https://github.com/ful1e5/Bibata_Cursor/releases/latest/download/%s.tar.xz"
+BIBATA_VERSION = "v2.0.7"
+BIBATA_URL = "https://github.com/ful1e5/Bibata_Cursor/releases/download/%s/%%s.tar.xz" % BIBATA_VERSION
+BIBATA_SHA = {
+    "Bibata-Modern-Ice": "a68cae60c4dc706350e194ebc91c5fe48bc7bc9d59e119555834a2a7ee5078ef",
+    "Bibata-Modern-Classic": "7d3495864e5bbef02f5e77de760b2905903b63c71495a78ef6306d19a3b556d8",
+    "Bibata-Modern-Amber": "58b7ac00ed3cb45acb6b917cb9807a553873f1cca5c91348c4abaebe638e5884",
+    "Bibata-Original-Ice": "c96ec7515179cadcefa30f7aefd449830e4e0ab878ee13afbc96aa5906692916",
+    "Bibata-Original-Classic": "158b2e7e1b7f6d0eec1af80a93172960dd083b652fef7589575ee984673cc468",
+    "Bibata-Original-Amber": "989701009bff90d6ff63f611e7e7c986bdec1850f3852d0fad3d16b483936ea3",
+}
+
+
+def fetch(url, dest, sha):
+    """download through rice-download, which refuses a file whose SHA-256 does not match"""
+    if not os.access(DOWNLOAD, os.X_OK):
+        raise RuntimeError("rice-download is missing")
+    r = subprocess.run([DOWNLOAD, url, dest, sha], capture_output=True, text=True, timeout=180)
+    if r.returncode != 0:
+        raise RuntimeError((r.stderr or "").strip() or "download failed")
 
 
 def get_bibata(name="Bibata-Modern-Ice"):
     """Bibata from GitHub, for this user (its package is in the AUR: without yay it was missing, and with no
     cursor theme at all Hyprland shows no cursor)"""
-    if not name.startswith("Bibata-"):
+    if name not in BIBATA_SHA:
         return False
     tmp = tempfile.mkdtemp(prefix="rice-bibata-")
     try:
         arch = os.path.join(tmp, "b.tar.xz")
-        with urllib.request.urlopen(BIBATA_URL % name, timeout=60) as r, open(arch, "wb") as o:
-            shutil.copyfileobj(r, o)
+        fetch(BIBATA_URL % name, arch, BIBATA_SHA[name])
         out = os.path.join(tmp, "x")
         os.makedirs(out)
         safe_extract(arch, "tar", out)
@@ -442,26 +464,16 @@ def get_pack(pid):
     try:
         src = os.path.join(tmp, "src")
         os.makedirs(src)
-        if pk["kind"] == "git" and shutil.which("git"):
-            r = subprocess.run(["git", "clone", "--depth", "1", "-q", pk["url"], os.path.join(src, os.path.basename(pk["url"]))],
-                               capture_output=True, text=True, timeout=180, env=dict(os.environ, GIT_TERMINAL_PROMPT="0"))
-            if r.returncode != 0:
-                raise RuntimeError(r.stderr.strip().splitlines()[-1] if r.stderr.strip() else "git clone failed")
-            shutil.rmtree(os.path.join(src, os.path.basename(pk["url"]), ".git"), ignore_errors=True)
-        else:
-            url = pk["url"] + "/archive/refs/heads/main.zip" if pk["kind"] == "git" else pk["url"]
-            kind = "zip" if pk["kind"] in ("git", "zip") else "tar"
-            arch = os.path.join(tmp, "pack." + ("zip" if kind == "zip" else "tar"))
-            req = urllib.request.Request(url, headers={"User-Agent": "rice-cursor"})
-            with urllib.request.urlopen(req, timeout=60) as resp, open(arch, "wb") as f:
-                shutil.copyfileobj(resp, f)
-            safe_extract(arch, kind, src)
+        kind = "zip" if pk["kind"] == "zip" else "tar"
+        arch = os.path.join(tmp, "pack." + ("zip" if kind == "zip" else "tar"))
+        fetch(pk["url"], arch, pk["sha256"])
+        safe_extract(arch, kind, src)
         roots = theme_roots(src)
         if not roots:
             raise RuntimeError("no cursor theme found in the download")
         names = []
         for r in roots:
-            name = re.sub(r"-(main|master)$", "", os.path.basename(r.rstrip("/")))
+            name = re.sub(r"-(main|master|[0-9a-f]{7,40})$", "", os.path.basename(r.rstrip("/")))
             dst = os.path.join(ICONS, name)
             if os.path.exists(dst):
                 shutil.rmtree(dst)

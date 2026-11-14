@@ -1,0 +1,66 @@
+#!/usr/bin/env python3
+"""rice-download: download one file and verify its SHA-256.
+
+  rice-download URL DEST SHA256
+
+The file is written only after the checksum matches, so a broken or tampered
+download never replaces a working file. HTTPS is required.
+"""
+import hashlib
+import os
+import re
+import sys
+import tempfile
+import urllib.request
+
+CHUNK = 1024 * 1024
+
+
+def get(url, dest, expected):
+    if not url.startswith("https://"):
+        raise ValueError("only https:// downloads are allowed")
+    if not re.fullmatch(r"[0-9a-fA-F]{64}", expected or ""):
+        raise ValueError("the expected SHA-256 is missing or invalid")
+    expected = expected.lower()
+    os.makedirs(os.path.dirname(os.path.abspath(dest)), exist_ok=True)
+    fd, tmp = tempfile.mkstemp(prefix=".rice-download-", dir=os.path.dirname(os.path.abspath(dest)))
+    try:
+        digest = hashlib.sha256()
+        req = urllib.request.Request(url, headers={"User-Agent": "rice-download/1"})
+        with urllib.request.urlopen(req, timeout=120) as resp, os.fdopen(fd, "wb") as out:
+            fd = -1
+            while True:
+                block = resp.read(CHUNK)
+                if not block:
+                    break
+                digest.update(block)
+                out.write(block)
+        got = digest.hexdigest()
+        if got != expected:
+            raise ValueError("SHA-256 mismatch: got %s, expected %s" % (got, expected))
+        os.replace(tmp, dest)
+        tmp = ""
+    finally:
+        if fd >= 0:
+            os.close(fd)
+        if tmp:
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
+
+
+def main(argv):
+    if len(argv) != 4:
+        print(__doc__.strip(), file=sys.stderr)
+        return 2
+    try:
+        get(argv[1], argv[2], argv[3])
+        return 0
+    except Exception as e:
+        print("rice-download: %s" % e, file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))

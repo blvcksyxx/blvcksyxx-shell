@@ -142,7 +142,7 @@ The installer asks which window manager you want (Hyprland, niri or both), insta
 | `--dry-run` | show what would happen, change nothing |
 | `--restore` | put back the files from the last backup |
 
-**Updating:** Settings > **Update Center** > Update now (the steps show live, no terminal), the update notification, or `rice-update` in a terminal.
+**Updating:** Settings > **Update Center** > Update now (the steps show live, no terminal), the update notification, or `rice-update` in a terminal. Updates are checked against the project's signing key before they run; see [SECURITY.md](SECURITY.md).
 
 ## Features
 **Settings app** (`SUPER+U`) in the spirit of Material 3: a navigation rail (Home, Wallpaper, Appearance, Motion, Desktop, Bar & launcher, Sound & language, System, Gaming, Security, About, Update Center) with tabs, Google icons, colors made from your theme and a search over every setting.

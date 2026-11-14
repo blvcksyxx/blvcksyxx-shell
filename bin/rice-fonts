@@ -6,10 +6,24 @@
 #   rice-fonts status    show what is installed
 set -euo pipefail
 dir="$HOME/.local/share/fonts/blvcksyxx-shell"
+DL="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/rice-download"
+
+# Every download is pinned to an exact release/commit and verified with SHA-256.
+# To update one, change its URL and checksum together.
+GF_COMMIT="29b4ec6df2522a8aee279414b78a07910b065874"
+MD_COMMIT="10ecc14790612ca8fd164e3f4ffe9c16fc50d5b7"
+NF_VERSION="v3.5.1"
+GF="https://raw.githubusercontent.com/google/fonts/$GF_COMMIT/ofl"
+NF="https://github.com/ryanoasis/nerd-fonts/releases/download/$NF_VERSION"
+
 INTER_URL="https://github.com/rsms/inter/releases/download/v4.1/Inter-4.1.zip"
-RUBIK_URL="https://raw.githubusercontent.com/google/fonts/main/ofl/rubik/Rubik%5Bwght%5D.ttf"
+INTER_SHA="9883fdd4a49d4fb66bd8177ba6625ef9a64aa45899767dde3d36aa425756b11e"
+RUBIK_URL="$GF/rubik/Rubik%5Bwght%5D.ttf"
+RUBIK_SHA="1b3a7437ba2af80e465e773ed60c5036d1ba6ace492d89046dbcf18fb31e4e88"
 # icons used by the dashboard
-SYMBOLS_URL="https://raw.githubusercontent.com/google/material-design-icons/master/variablefont/MaterialSymbolsRounded%5BFILL%2CGRAD%2Copsz%2Cwght%5D.ttf"
+SYMBOLS_URL="https://raw.githubusercontent.com/google/material-design-icons/$MD_COMMIT/variablefont/MaterialSymbolsRounded%5BFILL%2CGRAD%2Copsz%2Cwght%5D.ttf"
+SYMBOLS_SHA="7e74e36533ccee12c2b81e75bfcf3ccf123d3bb7e7e46d65d94445f23db0c97c"
+NF_SYMBOLS_SHA="01172f37db8543edb102e5cb5c64101c9f4686630804d49b419aa07b23a69996"
 
 has() {
   local fams
@@ -18,14 +32,13 @@ has() {
 }
 
 # lock screen clock fonts (Settings > Idle & Lockscreen > Clock font), all SIL Open Font License
-GF="https://raw.githubusercontent.com/google/fonts/main/ofl"
 CLOCK_FONTS=(
-  "Bebas Neue|$GF/bebasneue/BebasNeue-Regular.ttf|BebasNeue.ttf"
-  "Orbitron|$GF/orbitron/Orbitron%5Bwght%5D.ttf|Orbitron-Variable.ttf"
-  "Outfit|$GF/outfit/Outfit%5Bwght%5D.ttf|Outfit-Variable.ttf"
-  "Space Grotesk|$GF/spacegrotesk/SpaceGrotesk%5Bwght%5D.ttf|SpaceGrotesk-Variable.ttf"
-  "Unbounded|$GF/unbounded/Unbounded%5Bwght%5D.ttf|Unbounded-Variable.ttf"
-  "Big Shoulders Display|$GF/bigshouldersdisplay/BigShouldersDisplay%5Bwght%5D.ttf|BigShouldersDisplay-Variable.ttf"
+  "Bebas Neue|$GF/bebasneue/BebasNeue-Regular.ttf|BebasNeue.ttf|08e4623805102d819f58601e46e345648846075e363b2ceb23313c2d1c83ec73"
+  "Orbitron|$GF/orbitron/Orbitron%5Bwght%5D.ttf|Orbitron-Variable.ttf|f42db2dd16e642258e35782916eceb1dcdbea06fb958d77ad71dc5963587e8fd"
+  "Outfit|$GF/outfit/Outfit%5Bwght%5D.ttf|Outfit-Variable.ttf|fc7287273e66929776e2ba54f144fe699080bec29f61bf649d70d871468aeade"
+  "Space Grotesk|$GF/spacegrotesk/SpaceGrotesk%5Bwght%5D.ttf|SpaceGrotesk-Variable.ttf|acad6de1fc93436f5c0f1f4137751ef04f1aea3063e7036535970ffcfbd79f72"
+  "Unbounded|$GF/unbounded/Unbounded%5Bwght%5D.ttf|Unbounded-Variable.ttf|323b511be380c8d474ef030686b71aedde501f8d9cd46da558b7c40454372c3f"
+  "Big Shoulders Display|$GF/bigshouldersdisplay/BigShouldersDisplay%5Bwght%5D.ttf|BigShouldersDisplay-Variable.ttf|60e208dc276a1c35fc5b62e94f9fb959c40c11783a9eb7548175c14b1fbeb720"
 )
 
 if [ "${1:-}" = "status" ]; then
@@ -33,19 +46,20 @@ if [ "${1:-}" = "status" ]; then
   exit 0
 fi
 
-command -v curl >/dev/null || { echo "rice-fonts: curl is needed" >&2; exit 1; }
+[ -x "$DL" ] || { echo "rice-fonts: rice-download is missing" >&2; exit 1; }
+command -v python3 >/dev/null || { echo "rice-fonts: python3 is needed" >&2; exit 1; }
 mkdir -p "$dir"
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 changed=0
 
 # Google Sans Flex (the interface font) and Google Sans Code: open source, SIL Open Font License
-for e in "Google Sans Flex|$GF/googlesansflex/GoogleSansFlex%5BROND%2Copsz%2Cslnt%2Cwdth%2Cwght%5D.ttf|GoogleSansFlex-Variable.ttf" \
-         "Google Sans Code|$GF/googlesanscode/GoogleSansCode%5Bwght%5D.ttf|GoogleSansCode-Variable.ttf"; do
-  IFS='|' read -r fam url file <<<"$e"
+for e in "Google Sans Flex|$GF/googlesansflex/GoogleSansFlex%5BROND%2Copsz%2Cslnt%2Cwdth%2Cwght%5D.ttf|GoogleSansFlex-Variable.ttf|a9ac770798857d5e8ac593ced42b22e40a7c08cec98319f92b0eccc2783a77ba" \
+         "Google Sans Code|$GF/googlesanscode/GoogleSansCode%5Bwght%5D.ttf|GoogleSansCode-Variable.ttf|c9649573afcd966f61096b1e9c3c3115e7b54315ca2adf9839c6f8b17d5f8e1f"; do
+  IFS='|' read -r fam url file sum <<<"$e"
   if has "$fam"; then
     echo "$fam: already installed"
-  elif curl -fsSL -o "$tmp/$file" "$url" && [ "$(head -c 4 "$tmp/$file" | od -An -tx1 | tr -d ' ')" = "00010000" ]; then
+  elif "$DL" "$url" "$tmp/$file" "$sum" && [ "$(head -c 4 "$tmp/$file" | od -An -tx1 | tr -d ' ')" = "00010000" ]; then
     mv "$tmp/$file" "$dir/$file"
     echo "$fam: installed"
     changed=1
@@ -58,7 +72,7 @@ if has Inter; then
   echo "Inter: already installed"
 else
   echo "Inter: downloading..."
-  curl -fsSL -o "$tmp/inter.zip" "$INTER_URL"
+  "$DL" "$INTER_URL" "$tmp/inter.zip" "$INTER_SHA"
   python3 - "$tmp/inter.zip" "$dir" <<'PY'
 import sys, zipfile
 z = zipfile.ZipFile(sys.argv[1])
@@ -72,7 +86,8 @@ if has Rubik; then
   echo "Rubik: already installed"
 else
   echo "Rubik: downloading..."
-  curl -fsSL -o "$dir/Rubik-Variable.ttf" "$RUBIK_URL"
+  "$DL" "$RUBIK_URL" "$tmp/rubik.ttf" "$RUBIK_SHA"
+  mv "$tmp/rubik.ttf" "$dir/Rubik-Variable.ttf"
   changed=1
 fi
 
@@ -80,7 +95,7 @@ if has "Material Symbols Rounded"; then
   echo "Material Symbols Rounded: already installed"
 else
   echo "Material Symbols Rounded: downloading..."
-  if curl -fsSL -o "$tmp/symbols.ttf" "$SYMBOLS_URL" && [ "$(head -c 4 "$tmp/symbols.ttf" | od -An -tx1 | tr -d ' ')" = "00010000" ]; then
+  if "$DL" "$SYMBOLS_URL" "$tmp/symbols.ttf" "$SYMBOLS_SHA" && [ "$(head -c 4 "$tmp/symbols.ttf" | od -An -tx1 | tr -d ' ')" = "00010000" ]; then
     mv "$tmp/symbols.ttf" "$dir/MaterialSymbolsRounded.ttf"
     changed=1
   else
@@ -89,12 +104,12 @@ else
 fi
 
 # icons: JetBrains Mono Nerd Font and Symbols Nerd Font (packaged on Arch and NixOS, not on Fedora)
-NF="https://github.com/ryanoasis/nerd-fonts/releases/latest/download"
-for e in "JetBrainsMono Nerd Font|JetBrainsMono|JetBrainsMonoNerdFont-*.ttf" "Symbols Nerd Font|NerdFontsSymbolsOnly|SymbolsNerdFont-*.ttf"; do
-  IFS='|' read -r fam pkg pat <<<"$e"
+for e in "JetBrainsMono Nerd Font|JetBrainsMono|JetBrainsMonoNerdFont-*.ttf|04d5e8f903693f9dd13e16f867e994834e681eb3c72c0d337a770dcda09010cf" \
+         "Symbols Nerd Font|NerdFontsSymbolsOnly|SymbolsNerdFont-*.ttf|$NF_SYMBOLS_SHA"; do
+  IFS='|' read -r fam pkg pat sum <<<"$e"
   if has "$fam"; then
     echo "$fam: already installed"
-  elif command -v tar >/dev/null && curl -fsSL -o "$tmp/$pkg.tar.xz" "$NF/$pkg.tar.xz" &&
+  elif command -v tar >/dev/null && "$DL" "$NF/$pkg.tar.xz" "$tmp/$pkg.tar.xz" "$sum" &&
        mkdir -p "$dir/$pkg" && tar -xJf "$tmp/$pkg.tar.xz" -C "$dir/$pkg" --wildcards "$pat" 2>/dev/null; then
     echo "$fam: installed"
     changed=1
@@ -107,7 +122,7 @@ done
 # (only Nerd Fonts count: Material Symbols and Unifont use the same code range for other pictures)
 if command -v fc-list >/dev/null && ! fc-list ':charset=f385' family 2>/dev/null | grep -qi 'nerd'; then
   echo "Logo icons (CachyOS): your Nerd Font is older, downloading the newest icons..."
-  if command -v tar >/dev/null && curl -fsSL -o "$tmp/logos.tar.xz" "$NF/NerdFontsSymbolsOnly.tar.xz" &&
+  if command -v tar >/dev/null && "$DL" "$NF/NerdFontsSymbolsOnly.tar.xz" "$tmp/logos.tar.xz" "$NF_SYMBOLS_SHA" &&
      mkdir -p "$dir/NerdFontsSymbolsOnly" && tar -xJf "$tmp/logos.tar.xz" -C "$dir/NerdFontsSymbolsOnly" --wildcards "SymbolsNerdFont-*.ttf" 2>/dev/null; then
     echo "Logo icons: installed"
     changed=1
@@ -117,10 +132,10 @@ if command -v fc-list >/dev/null && ! fc-list ':charset=f385' family 2>/dev/null
 fi
 
 for e in "${CLOCK_FONTS[@]}"; do
-  IFS='|' read -r fam url file <<<"$e"
+  IFS='|' read -r fam url file sum <<<"$e"
   if has "$fam"; then
     echo "$fam: already installed"
-  elif curl -fsSL -o "$tmp/clock.ttf" "$url" && [ "$(head -c 4 "$tmp/clock.ttf" | od -An -tx1 | tr -d ' ')" = "00010000" ]; then
+  elif "$DL" "$url" "$tmp/clock.ttf" "$sum" && [ "$(head -c 4 "$tmp/clock.ttf" | od -An -tx1 | tr -d ' ')" = "00010000" ]; then
     mv "$tmp/clock.ttf" "$dir/$file"
     echo "$fam: installed (lock screen clock)"
     changed=1
