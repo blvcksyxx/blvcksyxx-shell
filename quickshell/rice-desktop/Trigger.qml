@@ -16,6 +16,7 @@ Item {
     property string prevText: "\u0000"
     property string last: ""
     property bool primed: false
+    property int maxAge: 0                 // ms: also fire the line that was already there, if it is this recent
     width: 0; height: 0; visible: false
 
     FileView {
@@ -28,7 +29,11 @@ Item {
             const t = text()
             if (t !== tr.prevText) { tr.prevText = t; tr.content(t) }
             const o = t.trim()
-            if (tr.primed && o !== "" && o !== tr.last) tr.fired(o)
+            if (!tr.primed && tr.maxAge > 0 && o !== "") {
+                // the shell was still starting when the request was written: honour it if it is recent
+                const ts = parseFloat(o.split(" ")[0])
+                if (isFinite(ts) && Date.now() / 1000 - ts <= tr.maxAge / 1000) tr.fired(o)
+            } else if (tr.primed && o !== "" && o !== tr.last) tr.fired(o)
             if (o !== "") tr.last = o
             tr.primed = true
         }

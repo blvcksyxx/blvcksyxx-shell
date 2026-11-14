@@ -13,6 +13,7 @@ PanelWindow {
     id: ln
     property bool open: false
     property real t: 0
+    property real lastToggle: 0           // 300 ms guard: SUPER + R must not close again when Super is released
     Behavior on t { NumberAnimation { duration: 170; easing.type: Easing.OutCubic } }
     onOpenChanged: t = open ? 1 : 0
 
@@ -148,8 +149,19 @@ PanelWindow {
         command: ["bash", "-c", "cat \"$HOME/.cache/rice/launcher-usage.json\" 2>/dev/null"]
         stdout: StdioCollector { onStreamFinished: { try { ln.usage = JSON.parse(text) } catch (e) { } } }
     }
-    // rice-launch writes a line into this file: open it, or close it when it is already open
-    Trigger { name: "launcher-open"; onFired: function(o) { if (ln.open) ln.hide(); else ln.show() } }
+    // rice-launch writes a line into this file: open it, or close it when it is already open.
+    // maxAge: the press that started the shell still opens it; every: a faster safety net than the default.
+    Trigger {
+        name: "launcher-open"
+        maxAge: 4000
+        every: 500
+        onFired: function(o) {
+            const now = Date.now()
+            if (now - ln.lastToggle < 300) return
+            ln.lastToggle = now
+            if (ln.open) ln.hide(); else ln.show()
+        }
+    }
 
     // ---------- window ----------
     visible: open || (t > 0.01 && !closeT.done)

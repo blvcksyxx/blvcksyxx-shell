@@ -499,6 +499,8 @@ ShellRoot {
     GamePanel { gb: root.cfg.gamebar ? root.cfg.gamebar : ({}) }
     Notifs { id: notifs; islandTakes: mainBar.islandNotifs && notifs.shellMode }
     ControlCenter { nf: notifs }
+    // bottom-right screen corner: opens the control center
+    CCEdgeTrigger { screen: Mon.screen }
 
     Dock { dc: root.cfg.dock ? root.cfg.dock : ({}) }
 
