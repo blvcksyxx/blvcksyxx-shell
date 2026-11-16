@@ -14,7 +14,7 @@ jobs:
           shellcheck -x install.sh install/lib/*.sh
       - name: Python scripts compile
         run: |
-          for f in bin/*; do
+          for f in bin/* install/lib/*.py; do
             if head -n1 "$f" | grep -q python; then python3 -m py_compile "$f"; fi
           done
       - name: QML syntax

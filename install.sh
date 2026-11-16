@@ -132,6 +132,8 @@ SUMS="$HOME/.config/rice/installed.sums"
 KEPTF="$HOME/.cache/rice/kept-edits"
 PREV_REV=""
 sum_of() { sha256sum 2>/dev/null | cut -c1-64; }
+# the same file as before the SoftShadow -> Shadow merge: an old name alone is not a user edit
+qml_sum() { sed -e 's/SoftShadow/Shadow/g' | sum_of; }
 rec_sum() { # rec_sum DST: what is in DST now is ours
   [ "$DRY_RUN" = 1 ] && return 0
   case "$1" in "$HOME"/.config/quickshell/*.qml|"$HOME"/.config/quickshell/*.js) ;; *) return 0 ;; esac
@@ -148,7 +150,8 @@ user_edited() { # user_edited SRC DST: true when you changed DST after the insta
   if [ -n "$rec" ]; then [ "$cur" != "$rec" ]; return; fi
   [ -n "$PREV_REV" ] || return 1
   git -C "$ROOT" cat-file -e "$PREV_REV:${src#"$ROOT"/}" 2>/dev/null || return 1      # not in that version
-  old="$(git -C "$ROOT" show "$PREV_REV:${src#"$ROOT"/}" 2>/dev/null | sed -e "s|@HOME@|$HOME|g" -e "s|@USER@|$USER|g" | sum_of)"
+  cur="$(qml_sum <"$dst")"
+  old="$(git -C "$ROOT" show "$PREV_REV:${src#"$ROOT"/}" 2>/dev/null | sed -e "s|@HOME@|$HOME|g" -e "s|@USER@|$USER|g" | qml_sum)"
   [ -n "$old" ] && [ "$cur" != "$old" ]
 }
 keep_edit() { # keep_edit SRC DST: your file stays, the new one goes next to it
@@ -221,6 +224,15 @@ copy_tree() { # copy_tree SRC_DIR DST_DIR
     fi
   fi
   return 0
+}
+# QML files kept from an older version can use an API that changed (Player became a singleton in V1.11): rewrite
+# only the exact old patterns, with a backup, and remember the result so the next update sees an unedited file.
+migrate_qml() { # migrate_qml DIR desktop|lockscreen
+  local dir="$1" kind="$2" f
+  [ -f "$ROOT/install/lib/migrate_qml.py" ] && [ -d "$dir" ] || return 0
+  while IFS= read -r f; do
+    [ -n "$f" ] && rec_sum "$f"
+  done < <(python3 "$ROOT/install/lib/migrate_qml.py" "$dir" "$kind" 2>>"${LOG:-/dev/null}")
 }
 missing_cmds() {
   local c out=()
@@ -875,6 +887,9 @@ step_apps() {
     esac
     task "$n  ->  ~/.config/quickshell/$d" copy_tree "$ROOT/quickshell/$d" "$HOME/.config/quickshell/$d"
   done
+  # your kept QML may use an API this version changed (Player became a singleton): rewrite the old pattern
+  task "Bridging your kept QML files to V$RICE_VERSION" migrate_qml "$HOME/.config/quickshell/rice-desktop" desktop
+  task "Bridging your kept lock screen files to V$RICE_VERSION" migrate_qml "$HOME/.config/quickshell/rice-lockscreen" lockscreen
   # the separate wallpaper picker is gone: its old files leave the config too
   rm -rf "$HOME/.config/quickshell/hyprquickpaper"
   # The dashboard is gone (the bar's island took its place); its old files leave the config too

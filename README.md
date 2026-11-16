@@ -21,7 +21,7 @@
   <img src="https://img.shields.io/badge/Quickshell-QML-8B7BFF?style=for-the-badge&labelColor=11111b&logo=qt&logoColor=8B7BFF&color=1a1b26" alt="Quickshell">
 </p>
 <p align="center">
-  <a href="https://github.com/blvcksyxx/blvcksyxx-shell/releases/tag/v1.11"><img src="https://img.shields.io/badge/release-v1.11-8B7BFF?style=for-the-badge&labelColor=11111b&logo=github&logoColor=white" alt="blvcksyxx shell 1.11"></a>
+  <a href="https://github.com/blvcksyxx/blvcksyxx-shell/releases/tag/v1.11.1"><img src="https://img.shields.io/badge/release-v1.11.1-8B7BFF?style=for-the-badge&labelColor=11111b&logo=github&logoColor=white" alt="blvcksyxx shell 1.11.1"></a>
   <a href="https://github.com/blvcksyxx/blvcksyxx-shell/stargazers"><img src="https://img.shields.io/github/stars/blvcksyxx/blvcksyxx-shell?style=for-the-badge&labelColor=11111b&logo=starship&logoColor=f5c542&color=f5c542" alt="Stars"></a>
   <a href="https://github.com/blvcksyxx/blvcksyxx-shell/commits"><img src="https://img.shields.io/github/last-commit/blvcksyxx/blvcksyxx-shell?style=for-the-badge&labelColor=11111b&logo=git&logoColor=white&color=4c566a&label=updated" alt="Last commit"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-2ea043?style=for-the-badge&labelColor=11111b&logo=opensourceinitiative&logoColor=white" alt="MIT license"></a>
@@ -64,6 +64,8 @@ Screenshots of the running shell. More on the [website](https://shell.blvcksyxx.
 </p>
 
 **v1.11 highlights:** the new screenshot tool, Infinite Desktop with a moving wallpaper, the Material 3 lock screen, clipboard history, the wallpaper carousel, window rules and the shell's own login screen. Full list in the [release notes](docs/releases/v1.11.md).
+
+**v1.11.1** fixes the update from v1.1 that could stop the desktop from loading, and makes the desktop and lock screen recover from old kept files: [release notes](docs/releases/v1.11.1.md).
 
 ## Supported systems
 The bar, the welcome window and Settings show **your distro's logo** automatically.

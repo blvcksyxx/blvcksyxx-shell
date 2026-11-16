@@ -3,6 +3,21 @@
 All notable changes to blvcksyxx shell are listed here. The current version is in
 `VERSION`.
 
+## V1.11.1
+
+- Fixed an update from V1.1 that could stop the desktop from loading: the installer no longer
+  treats a QML file that only differs by the `SoftShadow` → `Shadow` rename as your edit, so
+  the old desktop files are replaced instead of staying next to the new singleton `Player`
+- Kept QML files are migrated to this version's API (`SoftShadow` → `Shadow`, desktop
+  `Player { ... }` → the singleton's `hold()` / `release()`, lock screen `Player` →
+  `LockPlayer`) with a `.before-v1.11.1` backup; only the exact old patterns change
+- The desktop now logs to `~/.cache/rice/desktop.log`; if Quickshell quits while loading, it
+  takes the `.rice-update` files, migrates kept ones, retries once and says where the log is
+- The lock screen restores its own missing QML files from the repository and migrates kept
+  ones before it starts, so a broken update no longer leaves it without `shell.qml` or with
+  an old `Player`
+- Nothing is reset: settings, wallpapers and your own edits stay
+
 ## V1.11
 
 - New screenshot tool on Print and `SUPER + SHIFT + S`: the screen freezes and a Material 3

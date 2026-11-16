@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 dir="$HOME/.config/quickshell/rice-desktop"
+log="$HOME/.cache/rice/desktop.log"
 # Flatpak apps in the launcher: their .desktop files live in flatpak's exports, which a session started without
 # /etc/profile.d (Hyprland or niri from a display manager or a TTY) does not know about
 fp_add() { case ":${XDG_DATA_DIRS}:" in *":$1:"*) ;; *) [ -d "$1" ] && XDG_DATA_DIRS="${XDG_DATA_DIRS:+$XDG_DATA_DIRS:}$1" ;; esac; }
@@ -7,7 +8,66 @@ fp_add() { case ":${XDG_DATA_DIRS}:" in *":$1:"*) ;; *) [ -d "$1" ] && XDG_DATA_
 fp_add "${XDG_DATA_HOME:-$HOME/.local/share}/flatpak/exports/share"
 fp_add "/var/lib/flatpak/exports/share"
 export XDG_DATA_DIRS
-running() { pgrep -f "quickshell/rice-desktop" >/dev/null; }
+# only a real Quickshell process running this config counts (a shell command line can contain the path too)
+pids() {
+  local p
+  { pgrep -x qs 2>/dev/null; pgrep -x quickshell 2>/dev/null; } | sort -u | while IFS= read -r p; do
+    tr '\0' ' ' <"/proc/$p/cmdline" 2>/dev/null | grep -qF -- "$dir" && echo "$p"
+  done
+}
+running() { [ -n "$(pids)" ]; }
+stop() { local p; while IFS= read -r p; do kill "$p" 2>/dev/null; done < <(pids); }
+# start it and wait for the config to load; 1 when Quickshell quits or does not load it
+launch() {
+  local p i
+  mkdir -p "$(dirname "$log")"
+  : >"$log"
+  setsid -w qs -n -p "$dir" >>"$log" 2>&1 &
+  p=$!
+  for ((i = 0; i < 100; i++)); do
+    kill -0 "$p" 2>/dev/null || return 1
+    if grep -q 'Configuration Loaded' "$log" 2>/dev/null; then
+      sleep 0.3
+      kill -0 "$p" 2>/dev/null && return 0
+      return 1
+    fi
+    sleep 0.1
+  done
+  kill -0 "$p" 2>/dev/null
+}
+notify() {
+  command -v notify-send >/dev/null 2>&1 && notify-send -a "blvcksyxx shell" "$1" "$2" 2>/dev/null
+}
+# A kept QML file can use an API this version changed (Player became a singleton in V1.11) or an update can leave
+# the old file beside the new one. If the shell does not start: take the new files, migrate the kept ones, try once
+# more, and tell where the log is. The originals stay as FILE.before-v1.11.1.
+heal() {
+  local new f n=0 repo changed=""
+  for new in "$dir"/*.rice-update; do
+    [ -e "$new" ] || continue
+    f="${new%.rice-update}"
+    [ -e "$f" ] && [ ! -e "$f.before-v1.11.1" ] && cp -a "$f" "$f.before-v1.11.1" 2>/dev/null
+    cp -f "$new" "$f" 2>/dev/null && rm -f "$new" && n=$((n + 1))
+  done
+  repo="$(cat "$HOME/.config/rice/repo" 2>/dev/null)"
+  if [ -n "$repo" ] && [ -f "$repo/install/lib/migrate_qml.py" ]; then
+    changed="$(python3 "$repo/install/lib/migrate_qml.py" "$dir" desktop 2>/dev/null)"
+  fi
+  if [ "$n" -gt 0 ] || [ -n "$changed" ]; then
+    echo "rice-desktop: took $n new file(s), migrated ${changed:-0} kept file(s)" >>"$log"
+    launch && return 0
+  fi
+  return 1
+}
+start_shell() {
+  launch && return 0
+  if heal; then
+    notify "Desktop recovered" "Old shell files were moved aside (backups: *.before-v1.11.1). Log: $log"
+    return 0
+  fi
+  notify "Desktop did not start" "The shell could not load. Log: $log"
+  return 1
+}
 # a fresh login never starts in the widget editor
 [ "$1" = start ] && "$HOME/.local/bin/desktop-set" edit off >/dev/null 2>&1
 case "$1" in
@@ -43,11 +103,11 @@ case "$1" in
     running && exit 0
     [ -f "$dir/shell.qml" ] || { echo "missing $dir/shell.qml" >&2; exit 1; }
     "$HOME/.local/bin/desktop-set" state >/dev/null 2>&1
-    setsid -f qs -n -p "$dir" >/dev/null 2>&1
+    start_shell
     ;;
-  stop) pkill -f "quickshell/rice-desktop" ;;
+  stop) stop ;;
   restart)
-    pkill -f "quickshell/rice-desktop"
+    stop
     # background helpers: start the new versions
     pkill -f "\.local/bin/rice-ws-watch" 2>/dev/null
     pkill -f "\.local/bin/rice-rules watch" 2>/dev/null
@@ -57,7 +117,7 @@ case "$1" in
     [ -x "$HOME/.local/bin/rice-rules" ] && setsid -f "$HOME/.local/bin/rice-rules" watch >/dev/null 2>&1
     [ -x "$HOME/.local/bin/rice-update" ] && setsid -f "$HOME/.local/bin/rice-update" watch >/dev/null 2>&1
     for _ in 1 2 3 4 5 6 7 8 9 10; do running || break; sleep 0.2; done
-    setsid -f qs -n -p "$dir" >/dev/null 2>&1
+    start_shell
     ;;
   status) running && echo running || { echo stopped; exit 1; } ;;
   *) echo "usage: rice-desktop start|stop|restart|ensure|status" >&2; exit 1 ;;

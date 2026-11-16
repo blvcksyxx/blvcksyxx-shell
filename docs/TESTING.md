@@ -14,7 +14,7 @@ for f in bin/*; do head -n1 "$f" 2>/dev/null | grep -q bash && bash -n "$f"; don
 ./install.sh --dry-run --yes
 
 # python syntax
-python3 -m py_compile install/lib/fixup.py install/tools/*.py
+python3 -m py_compile install/lib/fixup.py install/lib/migrate_qml.py install/tools/*.py
 
 # QML syntax (Quickshell warnings are normal; look for "Syntax error")
 err="$(mktemp)"
@@ -192,12 +192,12 @@ by `blvcksyxx <blvcksyxx@users.noreply.github.com>`.
 Update `VERSION` and the notes in `docs/releases/`, commit, then tag that commit:
 
 ```bash
-git tag -a v1.11 -m 'blvcksyxx shell 1.11'
-git push origin main v1.11
+git tag -a v1.11.1 -m 'blvcksyxx shell 1.11.1'
+git push origin main v1.11.1
 ```
 
-Create the GitHub release from the notes file (`gh release create v1.11 --title 'v1.11'
---notes-file docs/releases/v1.11.md`) or with **Releases → Draft a new release**. Upload
+Create the GitHub release from the notes file (`gh release create v1.11.1 --title 'v1.11.1'
+--notes-file docs/releases/v1.11.1.md`) or with **Releases → Draft a new release**. Upload
 `assets/social-preview.png` as the repository social preview in **Settings → General →
 Social preview**. Then test the updater:
 

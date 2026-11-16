@@ -17,6 +17,7 @@ import json
 import os
 import re
 import shutil
+import stat
 import subprocess
 import sys
 import time
@@ -403,6 +404,74 @@ FALLBACK = HOME + "/.cache/rice/lock-fallback"
 # the parts it shares with the desktop shell (copied from rice-desktop when they are newer)
 SHARED = ["Look", "Fonts", "DashFont", "MIcon", "T", "Blob", "ShapeImage", "WavyLine", "WavyArc",
           "RoundImage", "NPal", "Trigger", "Shadow", "Tr"]
+# the lock screen's own files; a broken update left some of them out, and the shell could not start
+LOCK_FILES = ["shell.qml", "LockView.qml", "LockCtx.qml", "LockCards.qml", "LockPlayer.qml"]
+
+
+def repo_dir():
+    try:
+        r = open(DIR + "/repo").read().strip()
+    except OSError:
+        return ""
+    return r if os.path.isdir(r + "/quickshell/rice-lockscreen") else ""
+
+
+def ensure_lock_files():
+    """put back a lock screen file the installer left out (the repo path is in ~/.config/rice/repo)"""
+    r = repo_dir()
+    if not r:
+        return False
+    src_dir = r + "/quickshell/rice-lockscreen"
+    changed = False
+    try:
+        os.makedirs(LOCKQS, exist_ok=True)
+    except OSError:
+        return False
+    for n in LOCK_FILES:
+        src, dst = src_dir + "/" + n, LOCKQS + "/" + n
+        if os.path.exists(src) and not os.path.exists(dst):
+            try:
+                shutil.copyfile(src, dst)
+                changed = True
+            except OSError:
+                pass
+    return changed
+
+
+def migrate_old():
+    """a kept lock screen file may still create Player (now a singleton) or say SoftShadow (now Shadow)"""
+    shadow = os.path.exists(LOCKQS + "/Shadow.qml")
+    player = os.path.exists(LOCKQS + "/LockPlayer.qml")
+    if not shadow and not player:
+        return
+    for n in os.listdir(LOCKQS):
+        if not n.endswith(".qml") or any(x in n for x in (".before-", ".stale-", ".backup-")):
+            continue
+        p = LOCKQS + "/" + n
+        try:
+            old = open(p, encoding="utf-8").read()
+        except (OSError, UnicodeDecodeError):
+            continue
+        text = old
+        if shadow:
+            text = re.sub(r"\bSoftShadow\b", "Shadow", text)
+        if player:
+            text = re.sub(r"\bPlayer\b(?=\s*\{)", "LockPlayer", text)
+        if text == old:
+            continue
+        try:
+            if not os.path.exists(p + ".before-v1.11.1"):
+                shutil.copy2(p, p + ".before-v1.11.1")
+            tmp = p + ".rice-new"
+            with open(tmp, "w", encoding="utf-8") as f:
+                f.write(text)
+            os.chmod(tmp, stat.S_IMODE(os.stat(p).st_mode))
+            os.replace(tmp, p)
+        except OSError:
+            try:
+                os.remove(p + ".rice-new")
+            except OSError:
+                pass
 
 
 def sync_shared():
@@ -462,11 +531,17 @@ def lock_now(preview=False, test=False):
             return
         if running("hyprlock") or our_lock_running():
             return
-    if not qs or not os.path.exists(LOCKQS + "/shell.qml"):
+    if not qs:
         if not preview:
             hyprlock()
         return
+    ensure_lock_files()
     sync_shared()
+    migrate_old()
+    if not os.path.exists(LOCKQS + "/shell.qml"):
+        if not preview:
+            hyprlock()
+        return
     os.makedirs(HOME + "/.cache/rice", exist_ok=True)
     # Background: Screenshot: what is on the screen now (taken before the lock covers it)
     if c["background"] == "screenshot" and shutil.which("grim"):
