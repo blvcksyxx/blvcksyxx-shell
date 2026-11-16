@@ -15,13 +15,15 @@ Scope {
     property bool hovering: false
     readonly property bool on: dc.enabled === true
     readonly property bool autoHide: dc.hover !== false
-    readonly property bool reveal: on && (!autoHide || pinned || hovering || apps.open)
+    readonly property bool reveal: on && !Infinite.hideUi && (!autoHide || pinned || hovering || apps.open)
     // Settings > Dock > Keep room for it: while the dock stays out (no hover-to-reveal, or held open with its pin),
     // windows keep away from it, like they do from the bar (an open browser ends above it, not under it)
     readonly property bool reserve: on && dc.reserve !== false && (!autoHide || pinned)
     readonly property string edge: dc.position === "left" || dc.position === "right" ? dc.position : "bottom"
     readonly property bool vert: edge === "left" || edge === "right"
     readonly property real alpha: Look.flat ? 1 : (dc.opacity !== undefined ? Number(dc.opacity) : 0.78)
+    // the app icons: in a neutral grey (Tint), in a shade of your wallpaper (Match the wallpaper, the default) or as they come
+    readonly property string iconLook: dc.tint === true ? "grey" : (dc.shade !== false ? "shade" : "plain")
     readonly property int icon: 34          // app icon size
     readonly property int cell: 46          // room for one app along the dock
     readonly property int thick: 60         // the dock's width across
@@ -34,7 +36,9 @@ Scope {
     onDcChanged: {
         if (!initDone && dc.enabled !== undefined) { pinned = dc.pinnedStartup === true; initDone = true }
     }
-    Timer { id: hideTimer; interval: 600; onTriggered: dock.hovering = false }
+    // it only hides when the pointer is really off the dock (a stray "exited" while the dock grows or while an icon
+    // is clicked made it hide and come back over and over)
+    Timer { id: hideTimer; interval: 700; onTriggered: if (!dockMouse.containsMouse) dock.hovering = false }
     DockApps { id: apps; dock: dock }
 
     function pickPlayer() {
@@ -114,10 +118,14 @@ Scope {
         NiriBlur { win: dockWin; items: [panel]; radius: panel.radius; on: dock.t > 0.95 && dock.dc.background !== false }
 
         MouseArea {
+            id: dockMouse
             anchors.fill: parent
             hoverEnabled: true
             acceptedButtons: Qt.NoButton
-            onEntered: { hideTimer.stop(); dock.hovering = true }
+            // while it slides away, a window that appears or moves under a still pointer says "entered" by itself:
+            // only a real movement of the pointer brings the dock back then
+            onEntered: { hideTimer.stop(); if (dock.reveal) dock.hovering = true }
+            onPositionChanged: { hideTimer.stop(); dock.hovering = true }
             onExited: if (dock.autoHide) hideTimer.restart()
         }
 
@@ -178,16 +186,21 @@ Scope {
                             sourceSize.width: 64; sourceSize.height: 64
                             asynchronous: true
                             smooth: true
-                            visible: dock.dc.tint !== true
+                            visible: dock.iconLook === "plain"
                             scale: appM.containsMouse ? 1.16 : 1
                             Behavior on scale { ScaleAnimator { duration: 140; easing.type: Easing.OutCubic } }
                         }
-                        // the grey look (Settings > Dock > Tint), only drawn when it is on
+                        // the grey look (Tint) or a shade of the wallpaper (the icon keeps its light and dark parts, in your
+                        // theme's color, a little of its own color left in), only drawn when one of them is on
                         Loader {
-                            active: dock.dc.tint === true
+                            active: dock.iconLook !== "plain"
                             anchors.fill: ico
                             sourceComponent: MultiEffect {
-                                source: ico; colorization: 1.0; colorizationColor: "#e4e4e7"
+                                source: ico
+                                colorization: dock.iconLook === "grey" ? 1.0 : 0.62
+                                colorizationColor: dock.iconLook === "grey" ? "#e4e4e7" : Look.accentHi
+                                saturation: dock.iconLook === "grey" ? 0 : 0.1
+                                Behavior on colorizationColor { ColorAnimation { duration: 600 } }
                                 scale: appM.containsMouse ? 1.16 : 1
                                 Behavior on scale { ScaleAnimator { duration: 140 } }
                             }

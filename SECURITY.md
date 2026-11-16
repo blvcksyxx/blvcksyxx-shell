@@ -1,4 +1,8 @@
-# Security Policy
+# Security
+
+blvcksyxx shell is a desktop shell: the installer copies scripts into `~/.local/bin`, they run
+at login, and a few steps ask for sudo (packages, the input group, SDDM). This file says what
+is checked, what is a choice, and what it does not protect against.
 
 ## Supported versions
 
@@ -49,7 +53,7 @@ signature can still be installed manually, but it is not an update path.
 Check a clone with:
 
 ```bash
-git -c gpg.ssh.allowedSignersFile=install/trusted-signers verify-tag v1.1
+git -c gpg.ssh.allowedSignersFile=install/trusted-signers verify-tag v1.11
 git -c gpg.ssh.allowedSignersFile=install/trusted-signers verify-commit HEAD
 ```
 
@@ -57,16 +61,66 @@ The private signing key is not in this repository. It is kept by the maintainer 
 GitHub Actions secret used by `.github/workflows/release.yml`. A key rotation updates
 `install/trusted-signers` and the release files.
 
-## Downloaded files
+## What the code checks
 
-The installer and the `rice-*` helpers use `bin/rice-download` for third-party files. It
-accepts HTTPS only, requires an exact SHA-256, writes to a temporary file and replaces the
-destination only after the checksum matches. The downloads are pinned to an exact release or
-commit; mutable URLs such as `releases/latest` are not used.
+- **Updates only come from this project.** The origin must be
+  `github.com/<owner>/blvcksyxx-shell` (a fork is allowed, a remote edited into the repo is
+  not), and the exact commit that is checked out must carry a valid signature from the
+  release key.
+- **A changed installer is not started on its own.** An update that brings a new `install.sh`
+  or `install/lib` shows the diffstat and asks in a terminal before anything is pulled; an
+  update started from Settings opens a terminal with `rice-update` for that question instead
+  of going on. `RICE_TRUST_UPDATE=1` is the explicit opt-out.
+- **Downloads are verified before use.** The installer and the `rice-*` helpers use
+  `bin/rice-download` for third-party files. It accepts HTTPS only, requires an exact
+  SHA-256, writes to a temporary file and replaces the destination only after the checksum
+  matches. The downloads are pinned to an exact release or commit; mutable URLs such as
+  `releases/latest` are not used.
+- **Archives cannot write outside their folder.** `install/lib/secure.sh` refuses absolute
+  paths, `../` and links pointing out of the destination when it unpacks an archive.
+- **The input group is opt-in.** Infinite Desktop reads `/dev/input`, so it needs it, but
+  that permission lets every program you run read every keyboard on the machine.
+  `./install.sh --input-group` (or Settings > Desktop > Infinite Desktop > Allow) enables it
+  after saying so.
+
+## What is a choice, not a default
+
+All three are in Settings > Language & region > Online lookups.
+
+- **Weather**: a place is required before any request (`rice-weather place "Warsaw"`);
+  otherwise wttr.in would geolocate your IP. Until then the widgets show the cached answer
+  or nothing. An install that already showed the weather keeps the place wttr.in had named.
+  Requests use `https://wttr.in`.
+- **Lyrics**: asking lrclib.net about the current song (artist and title) is off for new
+  installs (`rice-lyrics on`). An install that already had lyrics keeps them on. Cached
+  lyrics are used either way.
+- **Update checks**: on by default, once a day (`every_minutes` in
+  `~/.config/rice/update.json`), off with `rice-update watch off`.
+
+## Downloaded files
 
 This covers the fonts, cursor packs, Bibata cursor and matugen. Their pinned versions and
 checksums are next to their URLs in `bin/rice-fonts`, `bin/rice-cursor` and `install.sh`.
 Updating one means changing its URL and checksum together.
 
-Weather is requested from `https://wttr.in`. AUR packages are built by `paru`/`yay`, which
-run the checks in their `PKGBUILD`; they are not downloaded by `rice-download`.
+AUR packages are built by `paru`/`yay`, which run the checks in their `PKGBUILD`; they are
+not downloaded by `rice-download`.
+
+## Known limits
+
+- **The signing key is the trust anchor.** The guards above stop a foreign remote, an
+  unsigned commit and a silent installer swap, but whoever holds the signing key can still
+  sign code. If that matters to you, run from your own fork and review what the update
+  changes before answering "y".
+- **`rice-security` integrity baseline is tamper-evident, not tamper-proof.** It is a hash
+  list in your own `~/.config`, so it notices accidental or casual changes; a process
+  running as you can rewrite it.
+- **Local code is trusted.** The shell runs what is in `~/.config/quickshell` and
+  `~/.config/hypr` at login. The checks above cover the path *into* your machine, not
+  someone who can already write there.
+
+## Checks
+
+`tests/security.sh` runs on any machine (no Linux needed) and in CI on every push. CI also
+runs ShellCheck, Python compilation, Qt 6 `qmllint`, a pinned-download guard and a signed
+commit check.

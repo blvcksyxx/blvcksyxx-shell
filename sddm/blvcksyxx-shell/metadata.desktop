@@ -1,0 +1,15 @@
+[SddmGreeterTheme]
+Name=blvcksyxx shell
+Description=Material 3 login screen of blvcksyxx shell: your wallpaper and its colors
+Author=blvcksyxx
+Copyright=(c) 2026 blvcksyxx, MIT
+License=MIT
+Type=sddm-theme
+Version=1.0
+Website=https://github.com/blvcksyxx/blvcksyxx-shell
+MainScript=Main.qml
+ConfigFile=theme.conf
+TranslationsDirectory=translations
+Theme-Id=blvcksyxx-shell
+Theme-API=2.0
+QtVersion=6

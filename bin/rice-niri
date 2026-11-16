@@ -232,15 +232,16 @@ def default_binds(f, term, files):
         # screenshots and recording (niri's own screenshot tool is on Ctrl and Alt)
         ("Print", 'hotkey-overlay-title="Screenshot of an area"', run(b + "rice-hotcorner", "shot", "region")),
         ("Shift+Print", 'hotkey-overlay-title="Screenshot of the screen"', run(b + "rice-hotcorner", "shot", "full")),
-        ("Mod+Shift+S", 'hotkey-overlay-title=null', run(b + "screenshot")),
+        ("Mod+Shift+S", 'hotkey-overlay-title=null', run(b + "rice-hotcorner", "shot", "region")),
         ("Ctrl+Print", "", "screenshot-screen;"),
         ("Alt+Print", "", "screenshot-window;"),
         ("Mod+Shift+R", 'hotkey-overlay-title="Record the screen (again: stop)"', run(b + "rice-hotcorner", "record", "region")),
         # windows
         ("Mod+Q", 'repeat=false hotkey-overlay-title="Close the window"', "close-window;"),
         ("Mod+C", "repeat=false", "close-window;"),
-        ("Mod+V", 'hotkey-overlay-title="Float / tile the window"', "toggle-window-floating;"),
-        ("Mod+Shift+V", "", "switch-focus-between-floating-and-tiling;"),
+        ("Mod+V", 'repeat=false hotkey-overlay-title="Clipboard"', run(b + "rice-clip", "toggle")),
+        ("Mod+Shift+V", 'hotkey-overlay-title="Float / tile the window"', "toggle-window-floating;"),
+        ("Mod+Ctrl+V", "", "switch-focus-between-floating-and-tiling;"),
         ("Mod+F", 'hotkey-overlay-title="Maximize the column"', "maximize-column;"),
         ("Mod+Shift+F", 'hotkey-overlay-title="Fullscreen"', "fullscreen-window;"),
         ("Mod+Ctrl+F", "", "expand-column-to-available-width;"),
@@ -326,7 +327,7 @@ def default_binds(f, term, files):
 ACTION_KEYS = {
     "terminal": "Mod+Return", "launcher": "Mod+D", "launcher2": "Alt+Space", "settings": "Mod+U", "wallpaper": "Mod+W",
     "quick": "Mod+A", "cc": "Mod+N", "gamebar": "Mod+G", "dashboard": "Mod+Alt+D", "lock": "Mod+L", "close": "Mod+Q",
-    "float": "Mod+V", "shot": "Print", "shotfull": "Shift+Print", "record": "Mod+Shift+R", "widgets": "Mod+Alt+W",
+    "float": "Mod+Shift+V", "clipboard": "Mod+V", "shot": "Print", "shotfull": "Shift+Print", "record": "Mod+Shift+R", "widgets": "Mod+Alt+W",
     "taskview": "Mod+Tab", "switcher": "Alt+Tab",
 }
 
@@ -558,16 +559,52 @@ def known_outputs():
     return [n for n in seen if re.fullmatch(r"[A-Za-z0-9_.:-]+", str(n))]
 
 
+def niri_modes():
+    """{output: [(width, height, refresh in Hz)]} as niri has them now ({} when niri does not run)"""
+    sock = os.environ.get("NIRI_SOCKET", "")
+    if not ((sock and os.path.exists(sock)) and niri_bin()):
+        return {}
+    try:
+        r = subprocess.run([niri_bin(), "msg", "-j", "outputs"], capture_output=True, text=True, timeout=4)
+        return {n: [(m["width"], m["height"], m["refresh_rate"] / 1000.0) for m in (o.get("modes") or [])]
+                for n, o in json.loads(r.stdout).items()}
+    except Exception:
+        return {}
+
+
+def exact_mode(modes, w, h, rate):
+    """niri drops a mode whose refresh rate is not exactly one of its own (74.97 for 74.973 left the screen at 60 Hz):
+    the nearest one of that size, within half a hertz. Without a list (niri not running) as it was written."""
+    same = [m for m in modes if m[0] == int(w) and m[1] == int(h)]
+    if not same:
+        return "%sx%s@%.3f" % (w, h, rate)
+    best = min(same, key=lambda m: abs(m[2] - rate))
+    if abs(best[2] - rate) > 0.5:
+        return "%sx%s@%.3f" % (w, h, rate)
+    return "%dx%d@%.3f" % (best[0], best[1], best[2])
+
+
+def user_outputs():
+    """the screens your own user.kdl sets up: Settings leaves those alone (two blocks for one screen fight)"""
+    try:
+        txt = open(USER).read()
+    except Exception:
+        return set()
+    return set(re.findall(r'^\s*output\s+"([^"]+)"', txt, re.M))
+
+
 def outputs(s):
     L = []
     mons = s.get("monitors") or {}
+    mine = user_outputs()
+    have = niri_modes()
     # a screen you did not set up in Settings > System > Screen gets size 100 %, like on Hyprland (niri would pick
     # a bigger size by itself on sharp laptop screens, often 150 %)
     for name in known_outputs():
-        if name not in mons:
+        if name not in mons and name not in mine:
             L += block("output %s" % q(name), ["scale 1.0"])
     for name, m in mons.items():
-        if not re.fullmatch(r"[A-Za-z0-9_.:-]+", name):
+        if not re.fullmatch(r"[A-Za-z0-9_.:-]+", name) or name in mine:
             continue
         if m.get("disabled"):
             L += block("output %s" % q(name), ["off"])
@@ -575,7 +612,7 @@ def outputs(s):
         body = []
         mm = re.match(r"(\d+)x(\d+)@([\d.]+)", str(m.get("mode", "")))
         if mm:
-            body.append('mode "%sx%s@%.3f"' % (mm.group(1), mm.group(2), float(mm.group(3))))
+            body.append('mode "%s"' % exact_mode(have.get(name, []), mm.group(1), mm.group(2), float(mm.group(3))))
         try:
             body.append("scale %s" % flt(round(float(m.get("scale", 1)), 3)))
         except Exception:
@@ -612,8 +649,8 @@ def window_rules(f, s, flat):
         if f.blur:
             L += block("window-rule", ['match app-id="^(kitty|foot|footclient|Alacritty|com\\\\.mitchellh\\\\.ghostty|org\\\\.wezfurlong\\\\.wezterm)$"'] +
                        block("background-effect", ["blur true"]))
-            # the Settings app: frosted like on Hyprland
-            L += block("window-rule", ['match title="^Rice Settings$"'] + block("background-effect", ["blur true", "xray true"]))
+            # the Settings app: frosted like on Hyprland, over the windows behind it (xray would show only the wallpaper)
+            L += block("window-rule", ['match title="^Rice Settings$"'] + block("background-effect", ["blur true", "xray false"]))
     # pop-up apps float in the middle, like on Hyprland
     floats = [
         ('title="^Rice Settings$"', None),
@@ -640,6 +677,63 @@ def window_rules(f, s, flat):
     return L
 
 
+def user_rules():
+    """your window rules and the gaming workspace (Settings > Desktop > Window rules, kept by rice-rules)"""
+    try:
+        import importlib.machinery
+        import importlib.util
+        path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "rice-rules")
+        loader = importlib.machinery.SourceFileLoader("rice_rules", path)
+        spec = importlib.util.spec_from_loader("rice_rules", loader)
+        rr = importlib.util.module_from_spec(spec)
+        loader.exec_module(rr)
+        c = rr.load()
+    except Exception:
+        return []
+    L, names = [], []
+    g = c["gaming"]
+    # a number is the workspace at that place (niri has no rule for that: rice-rules watch moves the window);
+    # a name is a named workspace, which niri's open-on-workspace knows
+    def on_ws(ws):
+        if ws.isdigit():
+            return []
+        if ws not in names:
+            names.append(ws)
+        return ["open-on-workspace " + q(ws)]
+    if g["on"]:
+        body = ["match app-id=" + q(rr.GAME_RX)] + on_ws(g["ws"])
+        if g["fullscreen"]:
+            body.append("open-fullscreen true")
+        if not g["follow"]:
+            body.append("open-focused false")
+        L += block("window-rule", body)
+        if g["launchers"]:
+            if not g["ws"].isdigit():
+                L += block("window-rule", ["match app-id=" + q(rr.LAUNCHER_RX)] + on_ws(g["ws"]) + ["open-focused false"])
+    for r in c["rules"]:
+        if not r["on"] or not rr.valid_rx(r["match"]):
+            continue
+        body = ["match %s=%s" % ("title" if r["by"] == "title" else "app-id", q(r["match"]))]
+        if r["float"] or r["pin"]:
+            body.append("open-floating true")
+        if r["w"] and r["h"]:
+            body += block("default-column-width", ["fixed %d" % r["w"]])
+            body.append("default-window-height { fixed %d; }" % r["h"])
+        if r["ws"] and not r["ws"].isdigit():
+            body += on_ws(r["ws"])
+            if r["silent"]:
+                body.append("open-focused false")
+        if r["opacity"] < 0.999:
+            body.append("opacity %s" % flt(r["opacity"]))
+        if r["fullscreen"]:
+            body.append("open-fullscreen true")
+        elif r["maximize"]:
+            body.append("open-maximized true")
+        L += ["// " + (r["name"] or r["match"]).replace("\n", " ")] + block("window-rule", body)
+    # niri opens a window on a workspace only by its name: those are made here
+    return ["workspace " + q(n) for n in names] + L
+
+
 def layer_rules(f, flat):
     L = []
     # the overview (SUPER + Tab): the shell's blurred wallpaper (rice-backdrop) behind the zoomed-out workspaces;
@@ -657,7 +751,7 @@ def layer_rules(f, flat):
     # (wallpaper only) the windows showed through the bar unblurred, like a hole. Only the small area behind each
     # surface is blurred, so it costs little. The desktop widgets are different: they sit on the wallpaper under every window, so their blur is the shared one.
     if f.blur and not flat:
-        L += block("layer-rule", ['match namespace="^rice-(bar|bluetooth|cc|deskmenu|dock|dock-apps|gamebar|hotcorner|launcher|notify-popup|power|volume|osd|taskview|wallum|walls|wifi)$"']
+        L += block("layer-rule", ['match namespace="^rice-(bar|bluetooth|cc|clipboard|deskmenu|dock|dock-apps|gamebar|hotcorner|launcher|notify-popup|power|volume|osd|taskview|wallum|walls|wifi)$"']
                    + block("background-effect", ["xray false"]))
     # blur: the shell asks niri for blur exactly where it draws (Quickshell, ext-background-effect), so no layer
     # gets a rule here: a rule would blur a whole surface, see-through margins included
@@ -674,7 +768,8 @@ def startup(f, s):
         "dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP NIRI_SOCKET DISPLAY 2>/dev/null",
         # without systemd (Void): PipeWire and the password prompt agent
         b + "rice-sys session",
-        "awww-daemon",
+        # the wallpaper (not when Settings > Wallpaper says the shell sets none)
+        b + "rice-walls awww",
         b + "rice-notifyd",
         "hypridle",
         b + "rice-bar start",
@@ -759,6 +854,9 @@ def terminal():
 
 
 def files_app():
+    # the one you picked in Settings > Desktop > Look & Feel
+    if os.access(BIN + "/rice-files", os.X_OK):
+        return BIN + "/rice-files"
     for t in ("nautilus", "dolphin", "thunar", "nemo"):
         if shutil.which(t):
             return t
@@ -779,6 +877,10 @@ def build(f, user=True):
     L += animations(f, s, gaming, fx) + [""]
     L += window_rules(f, s, flat) + [""]
     L += layer_rules(f, flat) + [""]
+    if user:
+        ur = user_rules()
+        if ur:
+            L += ["// your window rules (Settings > Desktop > Window rules)"] + ur + [""]
     L += binds_section(f, s, terminal(), files_app()) + [""]
     if f.recent:
         # niri's own Alt + Tab switcher is off: Alt + Tab is the shell's (rice-taskview)
@@ -851,6 +953,14 @@ def keep_theirs():
 
 def apply(force=False):
     ensure_user()
+    # a keyboard layout written by hand (an old config.kdl, hyprland.lua) goes into the settings first, so this
+    # config keeps it instead of falling back to US
+    if not (jload(RICE + "/hypr.json", {}).get("kbd") or {}).get("layouts"):
+        try:
+            subprocess.run([os.path.expanduser("~/.local/bin/hypr-set"), "kbd-remember"], timeout=10,
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception:
+            pass
     ver = version()
     f = F(ver)
     text = build(f)

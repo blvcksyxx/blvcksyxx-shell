@@ -46,7 +46,7 @@ Item {
         { k: "notifications", n: "Notifications", i: "notifications", g: "" }, { k: "power", n: "Power", i: "power_settings_new", g: "" },
         { k: "island", n: "Island (clock)", i: "schedule", g: "" }
     ]
-    function lay() { return bc.layout ? bc.layout : { left: ["launcher", "workspaces", "title"], center: ["island"], right: ["tray", "volume", "bluetooth", "network", "battery", "notifications", "power"] } }
+    function lay() { return bc.layout ? bc.layout : { left: ["launcher", "workspaces", "title"], center: ["island"], right: ["music", "tray", "volume", "bluetooth", "network", "battery", "notifications", "power"] } }
     function hasMod(k) { const l = lay(); return (l.left || []).indexOf(k) >= 0 || (l.center || []).indexOf(k) >= 0 || (l.right || []).indexOf(k) >= 0 }
     function toggleMod(k) {
         const l = JSON.parse(JSON.stringify(lay()))
@@ -147,7 +147,7 @@ Item {
     component Label: Text { color: pal.dim; font.family: Fonts.main; font.pixelSize: 11; topPadding: 4 }
 
     // ---------- the panel ----------
-    SoftShadow { anchors.fill: bgr; radius: bgr.radius; on: Look.shadows && Look.shadowPanels }
+    Shadow { anchors.fill: bgr; radius: bgr.radius; on: Look.shadows && Look.shadowPanels }
     Rectangle {
         id: bgr
         anchors.fill: parent

@@ -27,7 +27,8 @@ hl.monitor({
 ---------------------
 
 -- Set programs that you use
-local fileManager = "nautilus"
+local terminal    = "$HOME/.local/bin/rice-term"   -- your terminal (Settings > Desktop > Look & Feel)
+local fileManager = "$HOME/.local/bin/rice-files"   -- your file manager (Settings > Desktop > Look & Feel)
 local menu        = "$HOME/.local/bin/rice-launch"   -- the launcher (SUPER + R, ALT + Space)
 
 
@@ -42,7 +43,7 @@ local menu        = "$HOME/.local/bin/rice-launch"   -- the launcher (SUPER + R,
 --
 hl.on("hyprland.start", function ()
     hl.exec_cmd("$HOME/.local/bin/rice-bar start")
-   hl.exec_cmd("awww-daemon")
+   hl.exec_cmd("$HOME/.local/bin/rice-walls awww")
    hl.exec_cmd("$HOME/.local/bin/rice-notifyd")
    hl.exec_cmd("hypridle")
    hl.exec_cmd("$HOME/.local/bin/border-sync")
@@ -59,6 +60,16 @@ hl.on("hyprland.start", function ()
 hl.env("XCURSOR_THEME", "Bibata-Modern-Ice")
 hl.env("XCURSOR_SIZE", "24")
 hl.env("HYPRCURSOR_SIZE", "24")
+-- Flatpak apps in the launchers: flatpak's exports, when the session did not get them from /etc/profile.d
+pcall(function()
+    local d = os.getenv("XDG_DATA_DIRS") or "/usr/local/share:/usr/share"
+    if d == "" then d = "/usr/local/share:/usr/share" end
+    local h = os.getenv("HOME") or ""
+    for _, p in ipairs({ h .. "/.local/share/flatpak/exports/share", "/var/lib/flatpak/exports/share" }) do
+        if not string.find(":" .. d .. ":", ":" .. p .. ":", 1, true) then d = d .. ":" .. p end
+    end
+    hl.env("XDG_DATA_DIRS", d)
+end)
 
 
 -----------------------
@@ -239,14 +250,6 @@ hl.gesture({
     action = "workspace"
 })
 
--- Example per-device config
--- See https://wiki.hypr.land/Configuring/Advanced-and-Cool/Devices/ for more
-hl.device({
-    name        = "epic-mouse-v1",
-    sensitivity = -0.5,
-})
-
-
 ---------------------
 ---- KEYBINDINGS ----
 ---------------------
@@ -259,7 +262,7 @@ local closeWindowBind = hl.bind(mainMod .. " + C", hl.dsp.window.close())
 -- closeWindowBind:set_enabled(false)
 hl.bind(mainMod .. " + M", hl.dsp.exec_cmd("command -v hyprshutdown >/dev/null 2>&1 && hyprshutdown || hyprctl dispatch 'hl.dsp.exit()'"))
 hl.bind(mainMod .. " + E", hl.dsp.exec_cmd(fileManager))
-hl.bind(mainMod .. " + V", hl.dsp.window.float({ action = "toggle" }))
+hl.bind(mainMod .. " + SHIFT + V", hl.dsp.window.float({ action = "toggle" }))   -- SUPER + V: the clipboard
 hl.bind(mainMod .. " + R", hl.dsp.exec_cmd(menu))
 hl.bind(mainMod .. " + P", hl.dsp.window.pseudo())
 hl.bind(mainMod .. " + J", hl.dsp.layout("togglesplit"))    -- dwindle only
@@ -450,7 +453,6 @@ hl.layer_rule({
 
 require("rice-settings")
 require("rice-dock")
-require("rice-hotcorner")
 require("rice-notify")
 require("rice-rofi")
 require("rice-desktop")
@@ -480,9 +482,12 @@ require("rice-dashboard")
 -- your own keys for the shell's actions (Settings > System > Keybinds)
 pcall(require, "rice-keymap")
 
+-- your window rules and the gaming workspace (Settings > Desktop > Window rules)
+pcall(require, "rice-rules")
+
 pcall(require, "rice-gpu")
 
--- must stay last: gaming mode and "no blur & transparency" override
+-- gaming mode and "no blur & transparency" override (before the user's own file)
 require("rice-gaming")
 
 -- blvcksyxx custom binds
@@ -492,3 +497,6 @@ hl.bind("Super_L", hl.dsp.exec_cmd("$HOME/.local/bin/rice-launch"), { release = 
 -- blvcksyxx: toggle fullscreen
 hl.unbind("ALT + F")
 hl.bind("ALT + F", hl.dsp.window.fullscreen({ action = "toggle" }))
+
+-- yours: ~/.config/hypr/user.lua (updates never change it; it is loaded last, so it wins)
+pcall(require, "user")

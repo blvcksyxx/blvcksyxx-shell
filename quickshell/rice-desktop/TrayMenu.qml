@@ -36,7 +36,7 @@ Item {
         Translate { y: (1 - tmu.t) * (tmu.down ? -10 : 10) }
     ]
 
-    SoftShadow { anchors.fill: bg; radius: bg.radius; on: Look.shadows && Look.shadowPanels; size: Look.shadowSize * 0.8; strength: Look.shadowStrength }
+    Shadow { anchors.fill: bg; radius: bg.radius; on: Look.shadows && Look.shadowPanels; size: Look.shadowSize * 0.8; strength: Look.shadowStrength }
     Rectangle {
         id: bg
         anchors.fill: parent

@@ -41,8 +41,10 @@ PanelWindow {
     readonly property color track: Qt.rgba(1, 1, 1, 0.1)
 
     // ---------- data ----------
-    property var st: ({ cpu: 0, ram: 0, gpu: 0, temp: 0, gtemp: 0, ramu: 0, ramt: 0 })
-    property bool haveGpu: false
+    // one rice-stats for the whole shell (Stats.qml)
+    readonly property var st: Stats.st
+    readonly property bool haveGpu: Stats.haveGpu
+    StatsHold { on: gp.open }
     property int ping: -1
     property int fps: -1
     property bool fpsOn: false
@@ -67,11 +69,6 @@ PanelWindow {
     }
 
     Process {
-        command: [Quickshell.env("HOME") + "/.local/bin/rice-stats", "1"]
-        running: gp.open
-        stdout: SplitParser { onRead: function(l) { try { const j = JSON.parse(l); gp.st = j; if (j.gpu > 0 || j.gtemp > 0) gp.haveGpu = true } catch (e) { } } }
-    }
-    Process {
         id: pingProc
         command: ["bash", "-c", "ping -c1 -W1 1.1.1.1 2>/dev/null | sed -n 's/.*time=\\([0-9.]*\\).*/\\1/p'"]
         stdout: StdioCollector { onStreamFinished: { const v = parseFloat(text); gp.ping = isNaN(v) ? -1 : Math.round(v) } }
@@ -88,7 +85,7 @@ PanelWindow {
             "echo \"fx $(\"$HOME/.local/bin/rice-effects\" state 2>/dev/null | tr -d '\\n')\"",
             "echo \"mic $(wpctl get-volume @DEFAULT_AUDIO_SOURCE@ 2>/dev/null)\"",
             "echo \"dnd $(\"$HOME/.local/bin/rice-cc\" dnd state 2>/dev/null)\"",
-            "grep -q '\"engine\": *\"shell\"' \"$HOME/.config/rice/cc.json\" 2>/dev/null || { command -v swaync-client >/dev/null && echo \"nc $(swaync-client -c 2>/dev/null)\"; }",
+            "grep -q '\"engine\": *\"shell\"' \"$HOME/.config/rice/cc.json\" 2>/dev/null || { command -v swaync-client >/dev/null && echo \"nc $(timeout 2 swaync-client -c -sw 2>/dev/null)\"; }",
             "echo \"fpson $(\"$HOME/.local/bin/rice-fps\" state 2>/dev/null)\"",
             "command -v brightnessctl >/dev/null && echo \"br $(brightnessctl -m 2>/dev/null | cut -d, -f4 | tr -d %)\""
         ].join("; ")]
@@ -133,7 +130,7 @@ PanelWindow {
     Timer { id: again; interval: 700; onTriggered: gp.refresh() }
 
     Trigger {
-        name: "gamebar-open"
+        name: "gamebar-open"; fresh: true
         onFired: function(o) {
             const w = o.split(" ")[1] || "toggle"
             gp.open = w === "open" ? true : (w === "close" ? false : !gp.open)
@@ -267,7 +264,7 @@ PanelWindow {
     }
 
     // ---------- the panel: a slim column on the left ----------
-    SoftShadow { x: panel.x; y: panel.y; width: panel.width; height: panel.height; radius: panel.radius; opacity: panel.opacity; scale: panel.scale; transformOrigin: Item.Left
+    Shadow { x: panel.x; y: panel.y; width: panel.width; height: panel.height; radius: panel.radius; opacity: panel.opacity; scale: panel.scale; transformOrigin: Item.Left
         on: Look.shadows && Look.shadowPanels }
     Rectangle {
         id: panel

@@ -3,6 +3,7 @@
 # Rounded and the six lock screen clock fonts) for the current user.
 # Works on any distro (NixOS too): files go to ~/.local/share/fonts, no root needed.
 #   rice-fonts           install what is missing
+#   rice-fonts cjk ja|ko|zh-CN  Noto Sans CJK for that language (three weights)
 #   rice-fonts status    show what is installed
 set -euo pipefail
 dir="$HOME/.local/share/fonts/blvcksyxx-shell"
@@ -13,9 +14,10 @@ DL="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/rice-download"
 GF_COMMIT="29b4ec6df2522a8aee279414b78a07910b065874"
 MD_COMMIT="10ecc14790612ca8fd164e3f4ffe9c16fc50d5b7"
 NF_VERSION="v3.5.1"
+CJK_COMMIT="f8d157532fbfaeda587e826d4cd5b21a49186f7c"
 GF="https://raw.githubusercontent.com/google/fonts/$GF_COMMIT/ofl"
 NF="https://github.com/ryanoasis/nerd-fonts/releases/download/$NF_VERSION"
-
+CJK="https://raw.githubusercontent.com/notofonts/noto-cjk/$CJK_COMMIT/Sans/SubsetOTF"
 INTER_URL="https://github.com/rsms/inter/releases/download/v4.1/Inter-4.1.zip"
 INTER_SHA="9883fdd4a49d4fb66bd8177ba6625ef9a64aa45899767dde3d36aa425756b11e"
 RUBIK_URL="$GF/rubik/Rubik%5Bwght%5D.ttf"
@@ -40,6 +42,49 @@ CLOCK_FONTS=(
   "Unbounded|$GF/unbounded/Unbounded%5Bwght%5D.ttf|Unbounded-Variable.ttf|323b511be380c8d474ef030686b71aedde501f8d9cd46da558b7c40454372c3f"
   "Big Shoulders Display|$GF/bigshouldersdisplay/BigShouldersDisplay%5Bwght%5D.ttf|BigShouldersDisplay-Variable.ttf|60e208dc276a1c35fc5b62e94f9fb959c40c11783a9eb7548175c14b1fbeb720"
 )
+
+# Japanese, Korean and Chinese text (Settings > System > Languages): Noto Sans CJK for that language, three weights
+# (about 13-24 MB). rice-fonts cjk ja|ko|zh-CN  (exit 0: there now, 2: it was there already, 1: could not download)
+# Pinned commit + SHA-256, like every other download here.
+cjk_sha() {
+  case "$1" in
+    NotoSansJP-Regular.otf) echo "dff723ba59d57d136764a04b9b2d03205544f7cd785a711442d6d2d085ac5073" ;;
+    NotoSansJP-Medium.otf)  echo "f396a3b57256e4515be9cb41f7aac54766d654890082a9f1b5c2451b5c093d8a" ;;
+    NotoSansJP-Bold.otf)    echo "1b0edfb500b73a4fa8a4fcaae1bbbd403994e08e73e3e0da37e70d3853f42c5f" ;;
+    NotoSansKR-Regular.otf) echo "69975a0ac8472717870aefeab0a4d52739308d90856b9955313b2ad5e0148d68" ;;
+    NotoSansKR-Medium.otf)  echo "b46988ef13e8bac08f3933af686eaf770972994f9b6d335be0184d60169b5431" ;;
+    NotoSansKR-Bold.otf)    echo "5a6ceb287ed2fc6cfc6213144ebea68cbd94b20fc9eb873d8486493bf02d9bda" ;;
+    NotoSansSC-Regular.otf) echo "faa6c9df652116dde789d351359f3d7e5d2285a2b2a1f04a2d7244df706d5ea9" ;;
+    NotoSansSC-Medium.otf)  echo "7633f5a016d4dd95e685a69633d818aabc4644c4b08e26bd35b1b30c45ed5dda" ;;
+    NotoSansSC-Bold.otf)    echo "c6cb5a93abaa9edc8ee7463b7ebb7f42d618d40e6ed2f7a5371c97b0b64767c0" ;;
+    NotoSansTC-Regular.otf) echo "5bab0cb3c1cf89dde07c4a95a4054b195afbcfe784d69d75c340780712237537" ;;
+    NotoSansTC-Medium.otf)  echo "bf206dca0975779bac71cb49a037a364156ca98a0c431b1b7d6b29fb8952ac7e" ;;
+    NotoSansTC-Bold.otf)    echo "55420b259eb119bf5f2a0aadba10cf9d736c12d64ab93e78546d69ef5f43558b" ;;
+    *) echo "" ;;
+  esac
+}
+if [ "${1:-}" = "cjk" ]; then
+  [ -x "$DL" ] || { echo "rice-fonts: rice-download is missing" >&2; exit 1; }
+  case "${2:-}" in
+    ja*) sub=JP; lc=ja ;; ko*) sub=KR; lc=ko ;; zh-TW|zh-HK) sub=TC; lc=zh-tw ;; zh*) sub=SC; lc=zh-cn ;;
+    *) echo "rice-fonts cjk ja|ko|zh-CN" >&2; exit 1 ;;
+  esac
+  if fc-list ":lang=$lc" family 2>/dev/null | grep -q .; then echo "Fonts for $lc: already installed"; exit 2; fi
+  mkdir -p "$dir/cjk"
+  ok=0
+  for w in Regular Medium Bold; do
+    f="NotoSans$sub-$w.otf"
+    if "$DL" "$CJK/$sub/$f" "$dir/cjk/$f.part" "$(cjk_sha "$f")" && [ "$(head -c 4 "$dir/cjk/$f.part")" = "OTTO" ]; then
+      mv "$dir/cjk/$f.part" "$dir/cjk/$f"; ok=1
+    else
+      rm -f "$dir/cjk/$f.part"
+    fi
+  done
+  [ "$ok" = 1 ] || { echo "Fonts for $lc: could not download"; exit 1; }
+  fc-cache -f "$dir" >/dev/null 2>&1 || true
+  echo "Fonts for $lc: installed (Noto Sans $sub)"
+  exit 0
+fi
 
 if [ "${1:-}" = "status" ]; then
   for f in "Google Sans Flex" "Google Sans Code" Inter Rubik "Material Symbols Rounded" "Bebas Neue" Orbitron Outfit "Space Grotesk" Unbounded "Big Shoulders Display"; do if has "$f"; then echo "$f: installed"; else echo "$f: missing"; fi; done

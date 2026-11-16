@@ -19,7 +19,12 @@ FocusScope {
     // the first screen shows the music and reads the numbers (the others only the clock and the password)
     readonly property bool first: !scr || Quickshell.screens.length === 0 || scr === Quickshell.screens[0]
     readonly property bool atLeft: v("layout", "center") === "left"
+    // Style: Cards (the month, the time and the music on tall cards, a bar at the bottom) or Classic (one column)
+    readonly property bool cards: v("style", "cards") !== "classic"
     NPal { id: pal; theme: "shell"; alpha: 0.62 }
+    readonly property var npal: pal
+    readonly property var player: pl
+    readonly property bool focusOk: keys.activeFocus
 
     // ---------- in and out ----------
     property real t: 0
@@ -38,7 +43,8 @@ FocusScope {
     readonly property string mm: two(now.getMinutes())
     readonly property var days: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
     readonly property var months: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
-    readonly property string dateText: days[now.getDay()] + ", " + now.getDate() + " " + months[now.getMonth()]
+    readonly property string dateText: Tr.lang === "en" ? days[now.getDay()] + ", " + now.getDate() + " " + months[now.getMonth()]
+                                                        : Tr.day(now.getDay()) + ", " + now.getDate() + " " + Tr.month(now.getMonth(), true)
     readonly property var clockFonts: ({ bebas: "Bebas Neue", orbitron: "Orbitron", outfit: "Outfit", grotesk: "Space Grotesk",
                                          unbounded: "Unbounded", shoulders: "Big Shoulders Display" })
     readonly property string clockFont: {
@@ -67,7 +73,8 @@ FocusScope {
         command: ["bash", "-c", "exec \"$HOME/.local/bin/rice-dashboard\" stats"]
         stdout: SplitParser { onRead: function(l) { try { lv.st = JSON.parse(l) } catch (e) { } } }
     }
-    Player { id: pl; running: lv.v("media", true) !== false }
+    // the lock screen's own player (LockPlayer.qml): it ticks for the first screen, when music is shown
+    LockPlayer { id: pl; running: lv.v("media", true) !== false && lv.first }
 
     // ---------- the background ----------
     readonly property string bgKind: v("background", "screenshot")
@@ -88,11 +95,11 @@ FocusScope {
         source: bgImg
         visible: bgImg.status === Image.Ready
         blurEnabled: lv.v("blur", 3) > 0
-        blur: Math.min(1, lv.v("blur", 3) / 4)
+        blur: Math.min(1, lv.v("blur", 3) / 4) * (lv.cards ? lv.ease(lv.t * 1.2) : 1)
         blurMax: 64
         // the wallpaper comes in slowly, a little larger at first
         opacity: lv.ease(lv.t * 1.4) * (1 - lv.gone)
-        scale: 1.06 - 0.06 * lv.ease(lv.t)
+        scale: (lv.cards ? 1.14 - 0.14 * lv.ease(lv.t) : 1.06 - 0.06 * lv.ease(lv.t)) + 0.05 * lv.gone
     }
     // a solid color background in your theme (Background: Color)
     Rectangle { anchors.fill: parent; visible: lv.bgKind === "color"
@@ -214,6 +221,7 @@ FocusScope {
 
         Column {
             id: main
+            visible: !lv.cards
             width: Math.min(lv.width - 64, 600)
             x: lv.atLeft ? Math.round(lv.width * 0.08) : Math.round((lv.width - width) / 2)
             // centred, a little above the middle; it moves smoothly when the music comes or goes
@@ -413,7 +421,7 @@ FocusScope {
                     Text {
                         anchors.left: lk.right; anchors.leftMargin: 14; anchors.verticalCenter: parent.verticalCenter
                         visible: !!root && root.pass === ""
-                        text: passArea.checking ? "Checking ..." : (lv.isPreview ? "Password (preview, Esc closes)" : "Enter your password")
+                        text: passArea.checking ? Tr.t("Checking ...") : (lv.isPreview ? Tr.t("Password (preview, Esc closes)") : Tr.t("Enter your password"))
                         color: pal.dim; font.family: Fonts.main; font.pixelSize: 15
                     }
                     // Enter, as a button too
@@ -491,8 +499,8 @@ FocusScope {
             Row { id: fbRow; anchors.centerIn: parent; spacing: 10
                 MIcon { anchors.verticalCenter: parent.verticalCenter; size: 20; name: "keyboard"; glyph: ""; color: pal.primary }
                 Column { anchors.verticalCenter: parent.verticalCenter
-                    Text { text: "Keyboard not working?"; color: pal.fg; font.family: Fonts.main; font.pixelSize: 13; font.weight: Font.DemiBold }
-                    Text { text: "Switch to the classic lock (hyprlock)"; color: pal.dim; font.family: Fonts.main; font.pixelSize: 11 } } }
+                    Text { text: Tr.t("Keyboard not working?"); color: pal.fg; font.family: Fonts.main; font.pixelSize: 13; font.weight: Font.DemiBold }
+                    Text { text: Tr.t("Switch to the classic lock (hyprlock)"); color: pal.dim; font.family: Fonts.main; font.pixelSize: 11 } } }
             MouseArea { id: fbm; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: if (lv.root) lv.root.fallback() }
         }
         // rice-lock test: it unlocks itself
@@ -502,13 +510,13 @@ FocusScope {
             height: 36; radius: 18; width: tst.implicitWidth + 32
             color: pal.primary
             Text { id: tst; anchors.centerIn: parent; color: pal.inkPrimary; font.family: Fonts.main; font.pixelSize: 13; font.weight: Font.DemiBold
-                text: lv.root ? "Test: it unlocks itself in " + lv.root.testLeft + " s" : "" }
+                text: lv.root ? Tr.t("Test: it unlocks itself in ") + lv.root.testLeft + " s" : "" }
         }
 
         // ---------- power ----------
         Row {
             id: pwr
-            visible: lv.v("power", true) !== false
+            visible: !lv.cards && lv.v("power", true) !== false
             anchors.right: parent.right; anchors.bottom: parent.bottom; anchors.margins: 32
             spacing: 12
             opacity: lv.stg(6)
@@ -519,11 +527,13 @@ FocusScope {
                 armed = ""
                 if (!lv.isPreview) Quickshell.execDetached(["bash", "-c", cmd])
             }
-            Power { k: "suspend"; icon: "bedtime"; label: "Sleep"; onHit: pwr.act(k, "\"$HOME/.local/bin/rice-sys\" suspend") }
-            Power { k: "reboot"; icon: "restart_alt"; label: "Restart"; onHit: pwr.act(k, "\"$HOME/.local/bin/rice-sys\" reboot") }
-            Power { k: "poweroff"; icon: "power_settings_new"; label: "Shut down"; red: true; onHit: pwr.act(k, "\"$HOME/.local/bin/rice-sys\" poweroff") }
+            Power { k: "suspend"; icon: "bedtime"; label: Tr.t("Sleep"); onHit: pwr.act(k, "\"$HOME/.local/bin/rice-sys\" suspend") }
+            Power { k: "reboot"; icon: "restart_alt"; label: Tr.t("Restart"); onHit: pwr.act(k, "\"$HOME/.local/bin/rice-sys\" reboot") }
+            Power { k: "poweroff"; icon: "power_settings_new"; label: Tr.t("Shut down"); red: true; onHit: pwr.act(k, "\"$HOME/.local/bin/rice-sys\" poweroff") }
         }
     }
+
+    LockCards { anchors.fill: parent; visible: lv.cards; lv: lv; pal: lv.npal }
 
     function wGlyph(w) {
         const s = String(w).toLowerCase()
@@ -584,7 +594,7 @@ FocusScope {
         Row { anchors.centerIn: parent; spacing: 8
             MIcon { anchors.verticalCenter: parent.verticalCenter; size: 20; name: pw.icon; glyph: ""
                 color: pw.red ? (pw.armed ? "#3b0a0a" : "#ffb4ab") : (pw.armed ? pal.inkPrimary : pal.fg) }
-            Text { id: lab; visible: pw.armed; anchors.verticalCenter: parent.verticalCenter; text: "Again: " + pw.label.toLowerCase()
+            Text { id: lab; visible: pw.armed; anchors.verticalCenter: parent.verticalCenter; text: Tr.t("Again: ") + pw.label.toLowerCase()
                 color: pw.red ? "#3b0a0a" : pal.inkPrimary; font.family: Fonts.main; font.pixelSize: 13; font.weight: Font.Medium } }
         MouseArea { id: pwm; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: pw.hit() }
     }

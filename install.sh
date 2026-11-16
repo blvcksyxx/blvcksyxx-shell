@@ -11,6 +11,12 @@ HAVE_VERSION="$(tr -d ' \r\n' 2>/dev/null <"$HOME/.config/rice/version" || true)
 . "$ROOT/install/lib/ui.sh"
 # shellcheck source=install/lib/distro.sh
 . "$ROOT/install/lib/distro.sh"
+# shellcheck source=install/lib/secure.sh
+. "$ROOT/install/lib/secure.sh"
+
+# pinned releases: the URLs below use these tags, and install/checksums.txt has their hashes
+MATUGEN_VERSION="4.2.0"
+BIBATA_VERSION="v2.0.7"
 
 ASSUME_YES=0; DRY_RUN=0; MODE=install; SKIP_PKGS=0; PULLED=0; TAKE_SETTINGS_ARG=0; WM_ARG=""; AUR_ARG=""; HELPER_ARG=""; DOCTOR=0
 usage() {
@@ -21,6 +27,7 @@ Usage: ./install.sh [options]
   -y, --yes          install everything, no questions
   -n, --dry-run      show what would happen, change nothing
       --no-packages  skip the package step
+      --no-upgrade   Arch: do not update the whole system first (faster; new packages may then need an update later)
       --update       get the newest version and update apps, scripts and packages (keeps your configs)
       --use-saved-settings  take the settings saved in this copy (settings/) even where you changed yours
       --wm=hyprland|niri|both   the window manager to set up (default: Hyprland; both: pick one at login)
@@ -28,7 +35,9 @@ Usage: ./install.sh [options]
       --doctor       check cursor theme, AUR helper and session, print a report to paste and repair the cursor
       --aur          Arch: get yay and every AUR package (without it: only when the shell needs one)
       --no-aur       Arch: never build yay; AUR packages are skipped (the cursor and fonts come from GitHub)
-      --no-input-group  do not join the input group (Infinite Desktop: SUPER + ALT + mouse then stays off)
+      --input-group  join the input group (Infinite Desktop: SUPER + ALT + mouse). That lets every program you run
+                     read every keyboard on this computer; off unless you ask for it
+      --no-input-group  keep it off (the default; same thing)
       --restore      put back the files from the newest backup
   -h, --help         this help
 U
@@ -38,6 +47,7 @@ for a in "$@"; do
     -y|--yes) ASSUME_YES=1 ;;
     -n|--dry-run) DRY_RUN=1 ;;
     --no-packages) SKIP_PKGS=1 ;;
+    --no-upgrade) NO_UPGRADE=1 ;;
     --restore) MODE=restore ;;
     --update) MODE=update ;;
     --pulled) MODE=update; PULLED=1 ;;
@@ -48,6 +58,7 @@ for a in "$@"; do
     --helper=yay|--helper=paru) HELPER_ARG="${a#--helper=}" ;;
     --doctor) DOCTOR=1 ;;
     --no-input-group) NO_INPUT=1 ;;
+    --input-group) NO_INPUT=0 ;;
     -h|--help) usage; exit 0 ;;
     *) fail "Unknown option: $a"; usage; exit 2 ;;
   esac
@@ -111,6 +122,40 @@ def k(v):
 sys.exit(0 if k(sys.argv[1]) > k(sys.argv[2]) else 1)
 PY
 }
+# ---- your own edits survive updates ----
+# The installer remembers what it wrote (~/.config/rice/installed.sums). A Quickshell file (.qml, .js) you changed
+# since then is kept as it is on an update: the new version lands next to it as FILE.rice-update and the summary
+# lists it. Before there was a list, the version the repo had before this update (git) tells if it was changed.
+SUMS="$HOME/.config/rice/installed.sums"
+# one line per file: appending on every update made this grow without end (and every check below slower)
+[ -f "$SUMS" ] && awk 'NF >= 2 { h = $1; sub(/^[^ ]+  */, ""); s[$0] = h } END { for (k in s) print s[k] "  " k }' "$SUMS" >"$SUMS.tmp" && mv "$SUMS.tmp" "$SUMS"
+KEPTF="$HOME/.cache/rice/kept-edits"
+PREV_REV=""
+sum_of() { sha256sum 2>/dev/null | cut -c1-64; }
+rec_sum() { # rec_sum DST: what is in DST now is ours
+  [ "$DRY_RUN" = 1 ] && return 0
+  case "$1" in "$HOME"/.config/quickshell/*.qml|"$HOME"/.config/quickshell/*.js) ;; *) return 0 ;; esac
+  mkdir -p "$(dirname "$SUMS")"
+  printf '%s  %s\n' "$(sum_of <"$1")" "${1#"$HOME"/}" >>"$SUMS"
+}
+user_edited() { # user_edited SRC DST: true when you changed DST after the installer wrote it
+  local src="$1" dst="$2" rel cur rec old
+  [ "${RICE_OVERWRITE:-0}" = 1 ] && return 1
+  case "$dst" in "$HOME"/.config/quickshell/*.qml|"$HOME"/.config/quickshell/*.js) ;; *) return 1 ;; esac
+  rel="${dst#"$HOME"/}"
+  cur="$(sum_of <"$dst")"
+  rec="$(grep -F "  $rel" "$SUMS" 2>/dev/null | awk -v r="$rel" '$2 == r { s = $1 } END { print s }')"
+  if [ -n "$rec" ]; then [ "$cur" != "$rec" ]; return; fi
+  [ -n "$PREV_REV" ] || return 1
+  git -C "$ROOT" cat-file -e "$PREV_REV:${src#"$ROOT"/}" 2>/dev/null || return 1      # not in that version
+  old="$(git -C "$ROOT" show "$PREV_REV:${src#"$ROOT"/}" 2>/dev/null | sed -e "s|@HOME@|$HOME|g" -e "s|@USER@|$USER|g" | sum_of)"
+  [ -n "$old" ] && [ "$cur" != "$old" ]
+}
+keep_edit() { # keep_edit SRC DST: your file stays, the new one goes next to it
+  put "$1" "$2.rice-update"
+  mkdir -p "$(dirname "$KEPTF")"; printf '%s\n' "${2#"$HOME"/}" >>"$KEPTF"
+}
+
 # put SRC DST: copy one file, fill in @HOME@/@USER@, back up what it replaces
 put() {
   local src="$1" dst="$2" rel
@@ -118,7 +163,7 @@ put() {
   if [ -e "$dst" ] || [ -L "$dst" ]; then
     rel="${dst#"$HOME"/}"
     mkdir -p "$BK/$(dirname "$rel")"
-    cp -aL "$dst" "$BK/$rel" 2>/dev/null || true
+    cp -aL "$dst" "$BK/$rel" 2>/dev/null || warn "could not back up ~/$rel (it is replaced anyway)"
     [ -L "$dst" ] && rm -f "$dst"
   fi
   mkdir -p "$(dirname "$dst")"
@@ -140,7 +185,7 @@ copy_tree() { # copy_tree SRC_DIR DST_DIR
     rel="${f#"$src"/}"
     if [ -e "$dst/$rel" ] || [ -L "$dst/$rel" ]; then kept_files+=("$f"); else new_files+=("$f"); fi
   done < <(find -L "$src" -type f ! -name '*.bak*' ! -name '.gitkeep' ! -name shell.qml -print0)
-  for f in "${new_files[@]}"; do put "$f" "$dst/${f#"$src"/}"; done
+  for f in "${new_files[@]}"; do put "$f" "$dst/${f#"$src"/}"; rec_sum "$dst/${f#"$src"/}"; done
   # the changed ones are written next to their old selves first and then swapped in all at once, so a running
   # Quickshell never reloads with half of the new files (a new Bar.qml with an old DynIsland.qml); files that
   # did not change are not touched at all
@@ -150,27 +195,29 @@ copy_tree() { # copy_tree SRC_DIR DST_DIR
     d="$dst/${f#"$src"/}"
     if [ "$DRY_RUN" = 1 ]; then continue; fi
     put "$f" "$d.rice-new"
-    if cmp -s "$d.rice-new" "$d"; then rm -f "$d.rice-new"; continue; fi
+    if cmp -s "$d.rice-new" "$d"; then rm -f "$d.rice-new" "$d.rice-update"; rec_sum "$d"; continue; fi
+    if user_edited "$f" "$d"; then rm -f "$d.rice-new"; keep_edit "$f" "$d"; continue; fi
     rel2="${d#"$HOME"/}"
     mkdir -p "$BK/$(dirname "$rel2")"
-    cp -aL "$d" "$BK/$rel2" 2>/dev/null || true
+    cp -aL "$d" "$BK/$rel2" 2>/dev/null || warn "could not back up ~/$rel2 (it is replaced anyway)"
     [ -L "$d" ] && rm -f "$d"
     staged+=("$d")
   done
-  for d in "${staged[@]}"; do mv -f "$d.rice-new" "$d"; done
+  for d in "${staged[@]}"; do mv -f "$d.rice-new" "$d"; rm -f "$d.rice-update"; rec_sum "$d"; done
   # shell.qml last, swapped in whole as well (Quickshell must never read it half written)
   if [ -f "$src/shell.qml" ] && [ "$DRY_RUN" != 1 ]; then
     d="$dst/shell.qml"
     if [ -e "$d" ]; then
       put "$src/shell.qml" "$d.rice-new"
-      if cmp -s "$d.rice-new" "$d"; then rm -f "$d.rice-new"
+      if cmp -s "$d.rice-new" "$d"; then rm -f "$d.rice-new"; rec_sum "$d"
+      elif user_edited "$src/shell.qml" "$d"; then rm -f "$d.rice-new"; keep_edit "$src/shell.qml" "$d"
       else
-        rel2="${d#"$HOME"/}"; mkdir -p "$BK/$(dirname "$rel2")"; cp -aL "$d" "$BK/$rel2" 2>/dev/null || true
+        rel2="${d#"$HOME"/}"; mkdir -p "$BK/$(dirname "$rel2")"; cp -aL "$d" "$BK/$rel2" 2>/dev/null || warn "could not back up ~/$rel2 (it is replaced anyway)"
         [ -L "$d" ] && rm -f "$d"
-        mv -f "$d.rice-new" "$d"
+        mv -f "$d.rice-new" "$d"; rec_sum "$d"
       fi
     else
-      put "$src/shell.qml" "$d"
+      put "$src/shell.qml" "$d"; rec_sum "$d"
     fi
   fi
   return 0
@@ -211,7 +258,7 @@ pretty_dir() {
   case "$1" in
     hypr) echo "Hyprland" ;; waybar) echo "Waybar" ;; swaync) echo "Notifications (swaync)" ;;
     rofi) echo "Rofi" ;; matugen) echo "Matugen colors" ;; kitty) echo "Kitty terminal" ;;
-    fastfetch) echo "Fastfetch" ;; fish) echo "Fish shell" ;; waybar-presets) echo "Waybar presets" ;; *) echo "$1" ;;
+    fastfetch) echo "Fastfetch" ;; btop) echo "btop theme (transparent)" ;; fish) echo "Fish shell" ;; waybar-presets) echo "Waybar presets" ;; *) echo "$1" ;;
   esac
 }
 
@@ -304,7 +351,10 @@ matugen_download() {
   d="$(mktemp -d)"
   if "$ROOT/bin/rice-download" "$url" "$d/m.tar.gz" "$sha" && tar -xzf "$d/m.tar.gz" -C "$d" 2>/dev/null; then
     local bin; bin="$(find "$d" -type f -name matugen | head -1)"
-    if [ -n "$bin" ]; then mkdir -p "$HOME/.local/bin"; install -m 755 "$bin" "$HOME/.local/bin/matugen"; rm -rf "$d"; return 0; fi
+    # a release asset is a binary, not a script: an ELF for this machine or nothing
+    if [ -n "$bin" ] && [ "$(head -c 4 "$bin" | od -An -tx1 | tr -d ' \n')" = "7f454c46" ]; then
+      mkdir -p "$HOME/.local/bin"; install -m 755 "$bin" "$HOME/.local/bin/matugen"; rm -rf "$d"; return 0
+    fi
   fi
   rm -rf "$d"
   return 1
@@ -329,6 +379,7 @@ flavor_notes() {
     garuda)      note "Garuda: Arch based, paru is used for the AUR packages." ;;
     manjaro)     warn "Manjaro holds packages back for weeks. Hyprland may be older than 0.55 (the Lua config needs 0.55): CachyOS or EndeavourOS work better." ;;
     nobara)      note "Nobara: Fedora based, the Fedora steps below are used." ;;
+    artix)       note "Artix ($INIT_SYS, no systemd): Arch's repositories are turned on when Hyprland is not in Artix's own, services are turned on with $INIT_SYS, and a login session with its own D-Bus is added." ;;
   esac
 }
 
@@ -359,6 +410,102 @@ install_yay() {
   return $rc
 }
 
+# ---- without systemd (Artix: OpenRC, runit, s6, dinit) ----
+# svc_on LABEL SYSTEMD_NAME OTHER_NAMES: turn a service on now and at boot, with this computer's init
+svc_on() {
+  if [ "$INIT_SYS" = systemd ]; then task "$1" sudo systemctl enable --now "$2.service"
+  else task "$1" sudo "$ROOT/bin/rice-sys" service-enable "$3"; fi
+}
+# Artix: Hyprland and most of the desktop are in Arch's repositories ([extra]). Artix's way to use them is
+# artix-archlinux-support plus an [extra] section in pacman.conf (Artix wiki: "Repositories")
+artix_repos() {
+  [ "$DISTRO_ID" = artix ] || return 0
+  grep -qE '^[[:space:]]*\[extra\]' /etc/pacman.conf 2>/dev/null && return 0
+  pacman -Si hyprland >/dev/null 2>&1 && return 0
+  note "Hyprland is not in Artix's own repositories: turning on Arch's [extra] repository (artix-archlinux-support)"
+  task "Arch repository support (artix-archlinux-support)" sudo pacman -Sy --needed --noconfirm artix-archlinux-support || {
+    warn "artix-archlinux-support could not be installed: Hyprland may be missing. See the Artix wiki, \"Repositories\""; return 0; }
+  task "Adding [extra] to /etc/pacman.conf (a copy stays as pacman.conf.bak-blvcksyxx)" sudo sh -c '
+    [ -e /etc/pacman.conf.bak-blvcksyxx ] || cp /etc/pacman.conf /etc/pacman.conf.bak-blvcksyxx
+    grep -qE "^[[:space:]]*\[extra\]" /etc/pacman.conf ||
+      printf "\n# Arch Linux repositories, after the Artix ones (added by blvcksyxx'"'"'s Shell)\n[extra]\nInclude = /etc/pacman.d/mirrorlist-arch\n" >>/etc/pacman.conf'
+  task "Arch's signing keys" sudo pacman-key --populate archlinux
+  task "Reading the package lists" sudo pacman -Sy
+}
+# what systemd would do, done with the init this computer has: Artix's service scripts (NAME-openrc ...),
+# D-Bus, elogind (the seat Hyprland and niri need) and NetworkManager turned on, and a login session with D-Bus
+nosystemd_setup() {
+  [ "$INIT_SYS" = systemd ] && return 0
+  [ "$FAMILY" = arch ] || return 0
+  if [ "$DISTRO_ID" = artix ] && [ "$INIT_SYS" != other ]; then
+    local svcp=() p
+    for p in "${ARTIX_SVC_PKGS[@]}" sddm; do
+      case "$p" in elogind|dbus) : ;; *) pacman -Qi "$p" >/dev/null 2>&1 || continue ;; esac
+      pacman -Qi "$p-$INIT_SYS" >/dev/null 2>&1 && continue
+      pacman -Si "$p-$INIT_SYS" >/dev/null 2>&1 && svcp+=("$p-$INIT_SYS")
+    done
+    if [ "${#svcp[@]}" -gt 0 ]; then
+      task "Service scripts for $INIT_SYS: ${svcp[*]}" sudo pacman -S --needed --noconfirm "${svcp[@]}" ||
+        warn "Some service scripts could not be installed: ${svcp[*]}"
+    fi
+  fi
+  local s
+  for s in "${ARTIX_SERVICES[@]}"; do
+    if [ "$s" = NetworkManager ] && pgrep -x connmand >/dev/null 2>&1; then
+      warn "ConnMan runs your network: NetworkManager is not turned on (two of them fight). The Wi-Fi menu needs NetworkManager:"
+      note "  turn ConnMan off and NetworkManager on with $INIT_SYS, then reboot"
+      continue
+    fi
+    [ -n "$("$ROOT/bin/rice-sys" service-has "$s")" ] || continue
+    svc_on "Turning on ${s%%|*} ($INIT_SYS)" "${s%%|*}" "$s"
+  done
+  if ! pgrep -x elogind-daemon >/dev/null 2>&1 && ! pgrep -x elogind >/dev/null 2>&1 && ! pgrep -x seatd >/dev/null 2>&1; then
+    warn "Neither elogind nor seatd is running: Hyprland and niri need one of them to start. Reboot once; if it stays, turn elogind on with $INIT_SYS"
+  fi
+  task "Login sessions with their own D-Bus (no systemd)" nosystemd_sessions
+}
+# a display manager starts Hyprland without a D-Bus session when there is no systemd: notifications, the tray,
+# portals and the Bluetooth menu then do not work. These sessions start it inside dbus-run-session
+nosystemd_sessions() {
+  command -v dbus-daemon >/dev/null 2>&1 || { echo "dbus-daemon not found (the dbus package)"; return 0; }
+  # dbus-run-session makes a bus with an "abstract" address; Flatpak (Spotify, Discord ...) and the portals cannot use
+  # that ("Unknown or unsupported transport disabled"). This starts the bus at $XDG_RUNTIME_DIR/bus, where systemd
+  # would have put it, and stops it with the session
+  local w=/usr/local/bin/rice-session d=/usr/share/wayland-sessions h
+  sudo mkdir -p "$d" /usr/local/bin || return 1
+  sudo tee "$w" >/dev/null <<'SESSION' || return 1
+#!/bin/sh
+# rice-session CMD...: runs CMD (Hyprland, niri) with a D-Bus session bus at $XDG_RUNTIME_DIR/bus (blvcksyxx shell, no systemd)
+rt="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+sock="$rt/bus"
+[ -d "$rt" ] && [ -w "$rt" ] || exec dbus-run-session "$@"
+alive() { [ -S "$sock" ] && dbus-send --bus="unix:path=$sock" --dest=org.freedesktop.DBus --print-reply /org/freedesktop/DBus org.freedesktop.DBus.GetId >/dev/null 2>&1; }
+if alive; then
+  export DBUS_SESSION_BUS_ADDRESS="unix:path=$sock"
+  exec "$@"
+fi
+rm -f "$sock"
+pid="$(dbus-daemon --session --address="unix:path=$sock" --fork --print-pid)" || exec dbus-run-session "$@"
+export DBUS_SESSION_BUS_ADDRESS="unix:path=$sock"
+"$@"; rc=$?
+kill "$pid" 2>/dev/null
+exit "$rc"
+SESSION
+  sudo chmod 755 "$w" || return 1
+  if command -v Hyprland >/dev/null 2>&1; then
+    h=Hyprland; command -v start-hyprland >/dev/null 2>&1 && h=start-hyprland
+    printf '[Desktop Entry]\nName=Hyprland (blvcksyxx)\nComment=Hyprland with its own D-Bus session, for systems without systemd\nExec=%s %s\nType=Application\nDesktopNames=Hyprland\n' "$w" "$h" |
+      sudo tee "$d/blvcksyxx-hyprland.desktop" >/dev/null || return 1
+    echo "Hyprland (blvcksyxx)"
+  fi
+  if command -v niri >/dev/null 2>&1; then
+    printf '[Desktop Entry]\nName=niri (blvcksyxx)\nComment=niri with its own D-Bus session, for systems without systemd\nExec=%s niri --session\nType=Application\nDesktopNames=niri\n' "$w" |
+      sudo tee "$d/blvcksyxx-niri.desktop" >/dev/null || return 1
+    echo "niri (blvcksyxx)"
+  fi
+  return 0
+}
+
 step_packages() {
   case "$FAMILY" in
     arch)
@@ -366,11 +513,28 @@ step_packages() {
       if [ "$DRY_RUN" = 1 ]; then
         info "would install ${#ARCH_PKGS[@]} packages: ${ARCH_PKGS[*]}"; return 0
       fi
-      task "Updating your system first (Arch needs this before new packages)" sudo pacman -Syu --noconfirm
+      # a stuck pacman is almost always another pacman, or its lock file left behind
+      if pgrep -x pacman >/dev/null 2>&1; then
+        warn "Another pacman is running right now (a software center, another terminal?). Wait for it, or this waits too."
+      elif [ -e /var/lib/pacman/db.lck ]; then
+        warn "pacman's lock file is left behind from an update that was stopped: sudo rm /var/lib/pacman/db.lck"
+      fi
+      artix_repos
+      if [ "${NO_UPGRADE:-0}" = 1 ]; then
+        note "Skipping the system update (--no-upgrade): if a package then fails to download, run: sudo pacman -Syu"
+      else
+        note "A full system update can take long on a slow connection or an old system. Skip it with ./install.sh --no-upgrade"
+        # Artix with Arch's [extra]: Artix's own build of a package replaces Arch's, and the old one's split-off part
+        # has to go ("geocode-glib-2 -> world/geocode-glib: remove geocode-glib-common?"). --noconfirm says no to
+        # that and the update fails; --ask=4 says yes to removing the conflicting package (Artix's wiki does the same)
+        ask=(); [ "$DISTRO_ID" = artix ] && ask=(--ask=4)
+        live "Updating your system first (Arch needs this before new packages)" sudo pacman -Syu --noconfirm "${ask[@]}" ||
+          { [ "$DISTRO_ID" = artix ] && warn "On Artix a package from Arch can clash with Artix's own one: run  sudo pacman -Syu  and answer Y to replacing it and y to removing the old part, then run the installer again."; }
+      fi
       task "Checking where each package comes from" pkg_check
       pkg_load
       note "${#REPO_PKGS[@]} from the official repositories, ${#AUR_PKGS[@]} from the AUR"
-      if ! task "Installing ${#REPO_PKGS[@]} packages: desktop, shell, tools and fonts" \
+      if ! live "Installing ${#REPO_PKGS[@]} packages: desktop, shell, tools and fonts" \
            sudo pacman -S --needed --noconfirm "${REPO_PKGS[@]}"; then
         # one package (a conflict, a typo upstream) must not stop all the others
         warn "Installing them together failed, trying one by one"
@@ -413,11 +577,13 @@ step_packages() {
         fi
       fi
       # power modes in the notification center (not when TLP or auto-cpufreq already manage power)
+      # without systemd: service scripts, D-Bus, elogind, NetworkManager, the login sessions (first: the two below need them)
+      nosystemd_setup
       if pacman -Qi power-profiles-daemon >/dev/null 2>&1 && ! pacman -Qi tlp >/dev/null 2>&1 && ! pacman -Qi auto-cpufreq >/dev/null 2>&1; then
-        task "Turning on power modes (power-profiles-daemon)" sudo systemctl enable --now power-profiles-daemon.service
+        svc_on "Turning on power modes (power-profiles-daemon)" power-profiles-daemon power-profiles-daemon
       fi
       if pacman -Qi bluez >/dev/null 2>&1; then
-        task "Turning on the Bluetooth service" sudo systemctl enable --now bluetooth.service
+        svc_on "Turning on the Bluetooth service" bluetooth "bluetoothd|bluetooth"
       fi
       ;;
     fedora)
@@ -445,7 +611,7 @@ step_packages() {
       # repoquery did not work at all: just try everything (first names)
       if [ "${#have[@]}" = 0 ]; then have=(); for p in "${FEDORA_PKGS[@]}"; do have+=("${p%%|*}"); done; absent=(); fi
       note "${#have[@]} packages to install${absent[0]:+, not in your repositories: ${absent[*]}}"
-      if ! task "Installing ${#have[@]} packages: desktop, shell, tools and fonts" sudo dnf install -y --skip-unavailable "${have[@]}"; then
+      if ! live "Installing ${#have[@]} packages: desktop, shell, tools and fonts" sudo dnf install -y --skip-unavailable "${have[@]}"; then
         warn "Installing them together failed, trying one by one"
         local failed=()
         for p in "${have[@]}"; do
@@ -566,13 +732,55 @@ step_fonts() {
   else warn "JetBrains Mono Nerd Font is missing: icons will show as boxes"; fi
 }
 
+# ~/.config/hypr/user.lua: your own Hyprland settings, loaded last; no update ever writes over it
+make_user_lua() {
+  local f="$HOME/.config/hypr/user.lua"
+  [ "$DRY_RUN" = 1 ] || [ -e "$f" ] && return 0
+  mkdir -p "$HOME/.config/hypr"
+  cat >"$f" <<'LUA'
+-- Your own Hyprland settings. blvcksyxx shell never changes this file (updates leave it alone).
+-- It is loaded last, so whatever you set here wins over the shell's config. Put your changes here instead of
+-- hyprland.lua (an update brings a new hyprland.lua; your old one is in ~/.config/blvcksyxx-shell-backup-*).
+-- Docs: https://wiki.hypr.land
+--
+-- Examples:
+-- hl.bind("SUPER + B", hl.dsp.exec_cmd("firefox"))
+-- hl.config({ input = { repeat_delay = 300, repeat_rate = 40 } })
+-- hl.config({ general = { gaps_in = 4, gaps_out = 8 } })
+-- hl.on("hyprland.start", function() hl.exec_cmd("discord") end)
+LUA
+}
+
+# btop: the transparent theme is used unless you picked a theme of your own
+set_btop() {
+  [ "$DRY_RUN" = 1 ] && return 0
+  command -v btop >/dev/null 2>&1 || return 0
+  local f="$HOME/.config/btop/btop.conf" th cur
+  th=blvcksyxx; [ -f "$HOME/.config/btop/themes/matugen.theme" ] && th=matugen
+  mkdir -p "$HOME/.config/btop"
+  [ -f "$f" ] || printf 'color_theme = "Default"\ntheme_background = True\n' >"$f"
+  cur="$(sed -n 's/^color_theme *= *"\(.*\)".*/\1/p' "$f" | head -1)"
+  case "$cur" in
+    ""|Default|TTY|blvcksyxx|matugen)
+      grep -q '^color_theme' "$f" && sed -i "s|^color_theme *=.*|color_theme = \"$th\"|" "$f" || echo "color_theme = \"$th\"" >>"$f"
+      grep -q '^theme_background' "$f" && sed -i 's|^theme_background *=.*|theme_background = False|' "$f" || echo "theme_background = False" >>"$f" ;;
+  esac
+}
+
 step_configs() {
   local d n
   n="$(config_dirs | wc -l)"
   if [ "$n" = 0 ]; then warn "This copy has no config files (config/ is empty)"; return 0; fi
+  # the keyboard layout you use now is kept (an update used to put it back to US)
+  has_hypr && task "Keeping your keyboard layout" python3 "$ROOT/bin/hypr-set" kbd-remember
   for d in $(config_dirs); do
     task "$(pretty_dir "$d")  ->  ~/.config/$d" copy_tree "$ROOT/config/$d" "$HOME/.config/$d"
   done
+  # your Settings for Hyprland (layout, gaps, keys ...) are written again over the file the update brought
+  has_hypr && task "Your Hyprland settings" python3 "$ROOT/bin/hypr-set" regen
+  has_hypr && make_user_lua
+  has_hypr && task "Your window rules" t "$ROOT/bin/rice-rules" apply
+  task "btop: transparent theme" set_btop
   task "Hyprland add-ons (keybinds, gaming mode)" copy_lua
   [ -d "$ROOT/wallpapers" ] && task "Wallpapers  ->  ~/Pictures/Wallpapers" put_wallpapers
   task "Fish: no welcome message" quiet_fish
@@ -656,6 +864,8 @@ step_apps() {
   task "Helper scripts ($n)  ->  ~/.local/bin" copy_bins
   [ -d "$ROOT/sounds" ] && task "Notification sounds  ->  ~/.local/share/rice/sounds" copy_tree "$ROOT/sounds" "$HOME/.local/share/rice/sounds"
   [ -f "$ROOT/assets/icon.png" ] && task "App icon  ->  ~/.local/share/rice/icon.png" put "$ROOT/assets/icon.png" "$HOME/.local/share/rice/icon.png"
+  # the pinned hashes for downloads, for the scripts that fetch things after the install (rice-cursor)
+  [ -f "$ROOT/install/checksums.txt" ] && task "Pinned download hashes  ->  ~/.local/share/rice/checksums.txt" put "$ROOT/install/checksums.txt" "$HOME/.local/share/rice/checksums.txt"
   for d in "$ROOT"/quickshell/*/; do
     [ -d "$d" ] || continue
     d="$(basename "$d")"
@@ -728,7 +938,11 @@ LUA
 ensure_input_group() {
   [ "$DRY_RUN" = 1 ] && return 0
   if id -nG "$USER" 2>/dev/null | tr ' ' '\n' | grep -qx input; then echo "input group: yes"; return 0; fi
-  if [ "${NO_INPUT:-0}" = 1 ]; then echo "input group: skipped (--no-input-group)"; return 0; fi
+  if [ "${NO_INPUT:-1}" = 1 ]; then
+    echo "input group: not joined (off by default: it lets any program you run read every keyboard)"
+    echo "  Infinite Desktop (SUPER + ALT + mouse) needs it: ./install.sh --input-group, or Settings > Desktop > Infinite Desktop > Allow"
+    return 0
+  fi
   if [ "$FAMILY" = nixos ]; then
     echo "NixOS: add \"input\" to users.users.$USER.extraGroups in /etc/nixos/configuration.nix, then sudo nixos-rebuild switch"
     return 0
@@ -756,9 +970,16 @@ ensure_power_modes() {
       *) echo "power-profiles-daemon: install it with your package manager"; return 0 ;;
     esac
   fi
-  if systemctl list-unit-files power-profiles-daemon.service >/dev/null 2>&1 &&
-     ! systemctl is-enabled power-profiles-daemon.service >/dev/null 2>&1; then
-    sudo -n systemctl enable --now power-profiles-daemon.service || true
+  if [ "$INIT_SYS" = systemd ]; then
+    if systemctl list-unit-files power-profiles-daemon.service >/dev/null 2>&1 &&
+       ! systemctl is-enabled power-profiles-daemon.service >/dev/null 2>&1; then
+      sudo -n systemctl enable --now power-profiles-daemon.service || true
+    fi
+  elif sudo -n true 2>/dev/null; then
+    # Artix: the service script for this init, then on with it
+    [ "$DISTRO_ID" = artix ] && ! pacman -Qi "power-profiles-daemon-$INIT_SYS" >/dev/null 2>&1 &&
+      sudo -n pacman -S --needed --noconfirm "power-profiles-daemon-$INIT_SYS" >/dev/null 2>&1
+    sudo -n "$ROOT/bin/rice-sys" service-enable power-profiles-daemon >/dev/null 2>&1 || true
   fi
   echo "power modes: on"
 }
@@ -801,6 +1022,14 @@ prune_backups() {
   done <<<"$old"
   return 0
 }
+# parts that are gone (the old hot corner panel, SoftShadow): take their files out
+remove_old_parts() {
+  [ "$DRY_RUN" = 1 ] && return 0
+  rm -f "$HOME/.config/hypr/rice-hotcorner.lua" "$HOME/.config/quickshell/rice-desktop/HotCorner.qml" "$HOME/.config/quickshell/rice-desktop/HotCornerPanel.qml" \
+    "$HOME/.config/quickshell/rice-settings/HotCornersPage.qml" "$HOME/.config/quickshell/rice-settings/HotCornerPanel.qml" \
+    "$HOME/.config/quickshell/rice-desktop/SoftShadow.qml" "$HOME/.config/quickshell/rice-lockscreen/SoftShadow.qml"
+  return 0
+}
 # the quiet version of those tasks, for updates
 refresh_look() {
   [ -f "$HOME/.config/waybar/config.jsonc" ] && t "$BIN/waybar-set" distro-icon on
@@ -810,7 +1039,8 @@ refresh_look() {
   command -v hyprlock >/dev/null 2>&1 && t "$BIN/rice-lock" apply
   t "$BIN/rice-rofi" apply
   [ -x "$BIN/rice-bar" ] && t bash -c "\"$BIN/rice-bar\" migrate && \"$BIN/rice-bar\" start"
-  t "$BIN/rice-hotcorner" apply
+  t "$BIN/rice-hotcorner" apply     # takes the old hot corner blur rule out of your Hyprland config
+  remove_old_parts
   [ -x "$BIN/desktop-set" ] && t "$BIN/desktop-set" dock-blur
   [ -x "$BIN/rice-dashboard" ] && t "$BIN/rice-dashboard" blur
   return 0
@@ -842,7 +1072,8 @@ step_finish() {
     command -v hyprlock >/dev/null 2>&1 && task "Lock screen and idle timers" t "$BIN/rice-lock" apply
     task "Launcher and bar blur" t "$BIN/rice-rofi" apply
     [ -x "$BIN/rice-bar" ] && task "blvcksyxx bar (Waybar stays off)" t bash -c "\"$BIN/rice-bar\" migrate && \"$BIN/rice-bar\" start"
-    task "Panel settings" t "$BIN/rice-hotcorner" apply
+    task "Remove the old hot corner rule" t "$BIN/rice-hotcorner" apply
+    remove_old_parts
     [ -x "$BIN/desktop-set" ] && task "Dock and widget blur" t "$BIN/desktop-set" dock-blur
     [ -x "$BIN/rice-dashboard" ] && task "Panel blur" t "$BIN/rice-dashboard" blur
   fi
@@ -865,6 +1096,15 @@ step_finish() {
       task "niri config (written again for your niri when it first starts)" t "$BIN/rice-niri" apply
     fi
   fi
+  # the login screen (SDDM): it follows your wallpaper; a fresh install asks whether to use it
+  if [ -x "$BIN/rice-sddm" ] && [ "$DRY_RUN" != 1 ]; then
+    if [ -w /usr/share/sddm/themes/blvcksyxx-shell/user ]; then
+      task "Login screen (SDDM): your wallpaper and colors" t "$BIN/rice-sddm" sync
+    elif [ "$MODE" != update ] && [ "$ASSUME_YES" != 1 ] && command -v sddm >/dev/null 2>&1 && [ ! -e /etc/NIXOS ] \
+         && confirm "Use the shell's login screen for SDDM? (it asks for your password)"; then
+      "$BIN/rice-sddm" install || warn "The login screen was not put in (Settings > Desktop > Idle & Lockscreen can do it later)"
+    fi
+  fi
   # Settings > Security > Shell files: the files are watched from here on (after every install and update)
   [ -x "$BIN/rice-security" ] && task "Security: remember the shell files as they are now" t "$BIN/rice-security" baseline
   if [ "$IN_HYPR" = 1 ] && [ "$DRY_RUN" != 1 ]; then
@@ -875,6 +1115,10 @@ step_finish() {
     task "Restarting the bar and the desktop widgets" restart_shell
   else
     note "$(wm_name) is not running here, so nothing was reloaded. Everything starts on your next login."
+  fi
+  if [ "$INIT_SYS" != systemd ] && [ "$FAMILY" = arch ]; then
+    note "No systemd ($INIT_SYS): on the login screen pick \"Hyprland (blvcksyxx)\" or \"niri (blvcksyxx)\" (they bring D-Bus)."
+    note "From a text console:  rice-session Hyprland   (or: rice-session niri --session)"
   fi
 }
 restart_shell() {
@@ -931,10 +1175,20 @@ if [ "$MODE" = update ]; then
     ok "Got the newest version"
   elif [ -d "$ROOT/.git" ] && command -v git >/dev/null 2>&1; then
     old="$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo ?)"
-    if [ "$DRY_RUN" = 1 ]; then info "would fetch and verify the signed update, then fast-forward"
+    export RICE_PREV_REV="${RICE_PREV_REV:-$(git -C "$ROOT" rev-parse HEAD 2>/dev/null)}"
+    if [ "$DRY_RUN" = 1 ]; then
+      info "would check the origin, fetch and verify the signed update, then fast-forward"
     else
       u="$(git -C "$ROOT" remote get-url origin 2>/dev/null)"
       case "$u" in *blvcksyxx/blvcksyxx-shell*) git -C "$ROOT" remote set-url origin https://github.com/blvcksyxx/blvcksyxx-shell.git ;; esac
+      if ! update_remote_ok; then
+        fail "The update remote is not this project: $(git -C "$ROOT" remote get-url origin 2>/dev/null). Not updating."
+        exit 1
+      fi
+      # before anything moves: a changed installer is never started on its own (see install/lib/secure.sh)
+      if ! update_precheck; then
+        exit 1
+      fi
       up="$(git -C "$ROOT" rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null || echo origin/main)"
       gq() { GIT_TERMINAL_PROMPT=0 GCM_INTERACTIVE=never git -c credential.helper= -C "$ROOT" "$@" >>"$LOG" 2>&1; }
       info "Fetching and verifying the update..."
@@ -943,10 +1197,15 @@ if [ "$MODE" = update ]; then
         if ! verify_update "$up_sha"; then
           exit 1
         fi
+        # the remote can move between the precheck and this fetch: ask again if the installer changed since
+        if [ "${GUARD_CHECKED:-}" != "$up_sha" ] &&
+           ! update_guard "$(git -C "$ROOT" rev-parse HEAD 2>/dev/null || true)" "$up_sha"; then
+          exit 1
+        fi
         if gq merge --ff-only "$up_sha"; then
           new="$(git -C "$ROOT" rev-parse --short HEAD)"
           if [ "$old" != "$new" ]; then
-            # new files from GitHub, maybe a new installer too: start the new one
+            # new files from GitHub, maybe a new installer too (asked about before the fetch): start the new one
             exec "$ROOT/install.sh" --update --pulled "$@"
           fi
         else
@@ -955,8 +1214,8 @@ if [ "$MODE" = update ]; then
           info "The fast-forward did not go through; keeping your changes aside and taking GitHub's version"
           stamp="$(date +%Y%m%d-%H%M%S)"
           gq branch "rice-before-update-$stamp" HEAD || true
-          gq stash push -u -m "rice: your changes before the update of $stamp" || true
-          if gq reset --hard "$up_sha"; then
+          # only reset when the stash really kept the changes (a failed stash + reset --hard would lose them)
+          if gq stash push -u -m "rice: your changes before the update of $stamp" && gq reset --hard "$up_sha"; then
             ok "Took the newest version (your old state: branch rice-before-update-$stamp, and git stash list)"
             exec "$ROOT/install.sh" --update --pulled "$@"
           fi
@@ -971,8 +1230,18 @@ if [ "$MODE" = update ]; then
         warn "Could not get the newest version from GitHub (offline?). Continuing with the files you have."
       fi
     fi
+  else
+    # a ZIP from a GitHub release: no .git, so nothing to pull; it reinstalled the same old version again and again
+    warn "This folder is not a git copy (a ZIP download?), so it cannot get new versions. Run  rice-update  in a terminal: it turns it into one."
   fi
 fi
+
+# the version you have, as the repo had it (its tag, or the commit before the pull): your edits are told apart from it
+if [ "$MODE" = update ] && [ -d "$ROOT/.git" ] && command -v git >/dev/null 2>&1; then
+  PREV_REV="$(git -C "$ROOT" rev-parse -q --verify "v${HAVE_VERSION:-0}^{commit}" 2>/dev/null || true)"
+  [ -n "$PREV_REV" ] || PREV_REV="${RICE_PREV_REV:-}"
+fi
+rm -f "$KEPTF"
 
 if [ "$MODE" = update ]; then
   if ver_newer "$RICE_VERSION" "${HAVE_VERSION:-1.0}"; then
@@ -1055,6 +1324,11 @@ else
 fi
 hr
 if [ -n "$miss" ]; then warn "Still missing: $miss"; else ok "All needed programs are installed"; fi
+if [ -s "$KEPTF" ] && [ "$DRY_RUN" != 1 ]; then
+  warn "You changed these files, so they were kept as they are (the new versions are next to them, .rice-update):"
+  sed 's/^/        ~\//' "$KEPTF" | head -20
+  note "If something looks broken, take the new one:  mv FILE.rice-update FILE   (or update with RICE_OVERWRITE=1)"
+fi
 if [ -f "$HOME/.cache/rice/gpu-env-fixed" ] && [ "$DRY_RUN" != 1 ]; then
   warn "Log out and back in once: videos in Brave, Chrome and Discord (and GIFs) play again after that."
   note "An older version set NVIDIA video variables that broke them; they are gone now."

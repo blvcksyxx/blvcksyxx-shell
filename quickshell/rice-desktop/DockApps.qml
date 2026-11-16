@@ -60,7 +60,7 @@ PanelWindow {
     WlrLayershell.keyboardFocus: open ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
     MouseArea { anchors.fill: parent; onClicked: am.open = false }
 
-    SoftShadow { x: panel.x; y: panel.y; width: panel.width; height: panel.height; radius: panel.radius; opacity: panel.opacity; scale: panel.scale
+    Shadow { x: panel.x; y: panel.y; width: panel.width; height: panel.height; radius: panel.radius; opacity: panel.opacity; scale: panel.scale
         transformOrigin: panel.transformOrigin; on: Look.shadows && Look.shadowPanels }
     Rectangle {
         id: panel

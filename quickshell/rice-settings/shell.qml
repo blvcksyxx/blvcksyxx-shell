@@ -6,7 +6,8 @@ import QtQuick
 ShellRoot {
 FloatingWindow {
     id: win
-    title: I18n.t("Rice Settings")
+    // never translated: Hyprland and niri find the window by this title (its blur, size and floating rules)
+    title: "Rice Settings"
     // about half of a 1080p screen, a little bigger on bigger screens, never more than fits
     readonly property var scr0: Quickshell.screens && Quickshell.screens.length > 0 ? Quickshell.screens[0] : null
     readonly property int sw0: scr0 ? scr0.width : 1920
@@ -34,8 +35,59 @@ FloatingWindow {
     Timer { id: sizeSoon; interval: 120; onTriggered: win.applySize() }
     Connections { target: Prefs; function onSizeChanged() { sizeSoon.restart() } }
     color: "transparent"
-    visible: true
-    onVisibleChanged: if (!visible) Qt.quit()
+    // RICE_SETTINGS_HIDDEN=1 (rice-settings preload, at login): it starts hidden and waits, so the first opening is
+    // instant too
+    readonly property bool startHidden: Quickshell.env("RICE_SETTINGS_HIDDEN") === "1"
+    visible: !startHidden
+    // Closed, Settings waits hidden (rice-settings wakes it through ~/.cache/rice/settings-show), so opening it again
+    // is instant. It stays ready; only in Light mode it quits after three minutes, to free the memory.
+    // ~/.cache/rice/settings-parked: it is waiting.
+    property bool parked: false
+    function park() {
+        parked = true
+        if (flat) parkT.restart()
+        else lazyP.running = true
+        Quickshell.execDetached(["bash", "-c", "mkdir -p \"$HOME/.cache/rice\"; : > \"$HOME/.cache/rice/settings-parked\""])
+    }
+    onVisibleChanged: {
+        Prefs.shown = visible
+        if (!visible) park()
+        else if (parked) {
+            parked = false; parkT.stop()
+            Quickshell.execDetached(["bash", "-c", "rm -f \"$HOME/.cache/rice/settings-parked\""])
+            sizeSoon.restart()
+            // it may have waited a long time: what the pages show is read again
+            stateTimer.restart(); hrefresh.restart()
+        }
+    }
+    // "Keep Settings ready" turned off (rice-settings lazy): it quits after three minutes, like in Light mode
+    Process { id: lazyP; command: ["bash", "-c", "[ -e \"$HOME/.config/rice/settings-lazy\" ]"]
+        onExited: function(code) { if (code === 0 && win.parked) parkT.restart() } }
+    Timer { id: parkT; interval: 180000; onTriggered: { Quickshell.execDetached(["bash", "-c", "rm -f \"$HOME/.cache/rice/settings-parked\""]); Qt.quit() } }
+    // "TIME PAGE" opens it (on that page; "-" keeps the page), "TIME hide" closes it
+    property string lastShow: ""
+    property bool showPrimed: false
+    function showReq(t) {
+        t = (t || "").trim()
+        if (!showPrimed) { showPrimed = true; lastShow = t; return }
+        if (t === "" || t === lastShow) return
+        lastShow = t
+        const w = t.split(/\s+/)
+        if (w[1] === "hide") { visible = false; return }
+        const n = parseInt(w[1])
+        if (!isNaN(n) && n >= 0 && n < pages.length) page = n
+        visible = true
+    }
+    // which Settings answers settings-show (rice-settings checks it is this one, not an older version still open)
+    Process { running: true; command: ["bash", "-c", "mkdir -p \"$HOME/.cache/rice\"; echo \"$PPID\" > \"$HOME/.cache/rice/settings-pid\""] }
+    FileView {
+        path: win.home + "/.cache/rice/settings-show"
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+        onLoaded: win.showReq(text())
+        onLoadFailed: win.showPrimed = true
+    }
 
     readonly property string home: Quickshell.env("HOME")
     // the tour is on: the rest of the screen goes dark (dimWin below)
@@ -59,7 +111,7 @@ FloatingWindow {
         Quickshell.execDetached(["bash", "-c", "\"$HOME/.local/bin/desktop-set\" auto-hide \"$1\"", "_", on ? "on" : "off"])
         status = "Auto-hide widgets " + (on ? "on" : "off")
     }
-    function closeNow() { Qt.quit() }
+    function closeNow() { visible = false }
     // pages are made when you go to them; the first search makes all of them (search looks inside every page)
     property bool searchWanted: false
     property string lastQuery: ""
@@ -234,7 +286,7 @@ FloatingWindow {
         running: true
         stdout: StdioCollector { onStreamFinished: win.flat = text.trim() === "1" }
     }
-    Timer { interval: 1500; running: true; repeat: true; onTriggered: if (!flatProc.running) flatProc.running = true }
+    Timer { interval: 1500; running: win.visible; repeat: true; triggeredOnStart: true; onTriggered: if (!flatProc.running) flatProc.running = true }
 
     function dset(group, key, value) {
         const d = JSON.parse(JSON.stringify(dst))
@@ -320,7 +372,7 @@ FloatingWindow {
         { name: "Notifications", icon: "\uf0f3" },
         { name: "Idle & Lockscreen", icon: "\uf023" },
         { name: "Widgets", icon: "\uf26c" },
-        { name: "Hot corners", icon: "\udb82\ude0b" },
+        { name: "(removed)", icon: "" },   // index 13 stays so the page numbers after it do not move
         { name: "Dock", icon: "\uf2d0" },
         { name: "Services", icon: "" },
         { name: "Gaming hub", icon: "\uf11b" },
@@ -342,7 +394,8 @@ FloatingWindow {
         { name: "Security", icon: "\uf132" },
         { name: "Infinite Desktop", icon: "\uf065" },
         { name: "Themes", icon: "\uf53f" },
-        { name: "Update Center", icon: "\uf021" }
+        { name: "Update Center", icon: "\uf021" },
+        { name: "Window rules", icon: "\uf2d2" }
     ]
 
 
@@ -353,7 +406,7 @@ FloatingWindow {
         { group: "wall", name: "Wallpaper", icon: "\uf03e", sym: "wallpaper", pages: [18], caption: I18n.t("Wallpaper and the colors it gives") },
         { group: "look", name: "Appearance", icon: "\udb80\udfd8", sym: "palette", pages: [34, 8, 21, 19, 24, 22, 9, 14], caption: I18n.t("Themes, colors, fonts, shapes, components, cursors and the dock") },
         { group: "motion", name: "Motion", icon: "\uf1e6", sym: "animation", pages: [20], caption: I18n.t("How windows and Settings move") },
-        { group: "desk", name: "Desktop", icon: "\uf108", sym: "desktop_windows", pages: niri ? [29, 12, 25, 4, 11] : [29, 33, 12, 25, 4, 11], caption: I18n.t("Look & feel, widgets, windows, %1 and the lock screen", wmLabel) },
+        { group: "desk", name: "Desktop", icon: "\uf108", sym: "desktop_windows", pages: niri ? [29, 12, 25, 36, 4, 11] : [29, 33, 12, 25, 36, 4, 11], caption: I18n.t("Look & feel, widgets, windows, window rules, %1 and the lock screen", wmLabel) },
         { group: "bar", name: "Bar & launcher", icon: "\uf0c9", sym: "toolbar", pages: [2, 3, 6, 7], caption: I18n.t("The bar, the dynamic island and the launcher") },
         { group: "snd", name: "Sound & language", icon: "\uf028", sym: "graphic_eq", pages: [1, 10, 26], caption: I18n.t("Sounds, notifications, language and region") },
         { group: "sys", name: "System", icon: "\uf013", sym: "settings", pages: [30, 31, 28, 5, 23, 15], caption: I18n.t("Keybinds, languages, monitors, recording, keyboard and services") },
@@ -448,7 +501,7 @@ FloatingWindow {
         } else { navX = 0; navY = rb >= ra ? 1 : -1 }
     }
     onPageChanged: { navFrom(prevPage, page); prevPage = page; openFor(page); const n = Object.assign({}, lastIn); n[railOf(page)] = page; lastIn = n }
-    Component.onCompleted: openFor(page)
+    Component.onCompleted: { openFor(page); Prefs.shown = !startHidden; if (startHidden) park() }
 
     readonly property string hyprTool: home + "/.local/bin/hypr-set"
     property var hv: ({})
@@ -907,6 +960,7 @@ FloatingWindow {
             PageSlot { nav: win; idx: 33; cur: win.page; page: Component { InfinitePage { anchors.fill: parent; ctl: win } } }
             PageSlot { nav: win; idx: 34; cur: win.page; page: Component { ThemesPage { anchors.fill: parent; ctl: win } } }
             PageSlot { nav: win; idx: 35; cur: win.page; page: Component { UpdatePage { anchors.fill: parent; ctl: win } } }
+            PageSlot { nav: win; idx: 36; cur: win.page; page: Component { WindowRulesPage { anchors.fill: parent; ctl: win } } }
         }
 
         // results: the setting, and where it is (page > section)

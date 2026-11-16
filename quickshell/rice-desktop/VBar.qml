@@ -58,7 +58,7 @@ PanelWindow {
     readonly property int nws: bc.workspaces ? bc.workspaces : 5
     function noClock(l) { return (l || []).map(function(m) { return m === "clock" ? "island" : m }) }
     readonly property var lay: bc.layout ? ({ top: noClock(bc.layout.left), mid: noClock(bc.layout.center), bottom: noClock(bc.layout.right) })
-        : ({ top: ["launcher", "workspaces"], mid: ["island"], bottom: ["tray", "volume", "bluetooth", "network", "battery", "notifications", "power"] })
+        : ({ top: ["launcher", "workspaces"], mid: ["island"], bottom: ["music", "tray", "volume", "bluetooth", "network", "battery", "notifications", "power"] })
     function run(cmd) { Quickshell.execDetached(["bash", "-c", cmd]) }
     // the pop-up menus open beside the bar, level with the icon that opened them: "X Y" for rice-wifi and the others
     function menuX() { return atRight ? (vb.screen ? vb.screen.width - 260 : 1660) : 260 }
@@ -160,14 +160,8 @@ PanelWindow {
     readonly property real battPct: batt ? Math.round(batt.percentage * 100) : 0
     readonly property bool charging: batt && (batt.state === UPowerDeviceState.Charging || batt.state === UPowerDeviceState.FullyCharged)
     readonly property bool plugged: hasBatt && !UPower.onBattery
-    property var svc: ({})
-    Process {
-        id: svcProc
-        command: ["bash", "-c", "\"$HOME/.local/bin/rice-services\" state 2>/dev/null"]
-        stdout: StdioCollector { onStreamFinished: { try { vb.svc = JSON.parse(text) } catch (e) { } } }
-    }
-    Timer { interval: 8000; running: vb.on; repeat: true; triggeredOnStart: true; onTriggered: if (!svcProc.running) svcProc.running = true }
-    Timer { id: svcAgain; interval: 700; onTriggered: if (!svcProc.running) svcProc.running = true }
+    readonly property var svc: BarSvc.state
+    Binding { target: BarSvc; property: "sideShown"; value: vb.on }
     property var now: new Date()
     Timer { interval: 15000; running: vb.on; repeat: true; triggeredOnStart: true; onTriggered: vb.now = new Date() }
     property bool h12: false
@@ -266,6 +260,7 @@ PanelWindow {
         case "weather": return cWeather
         case "sysmon": return cSysmon
         case "date": return cDate
+        case "music": return cMusic
         }
         return null                     // the window title has no room standing up
     }
@@ -413,7 +408,7 @@ PanelWindow {
     }
     Component { id: cNotif
         Btn { icon: vb.svc.dnd ? "notifications_off" : "notifications"; glyph: String.fromCodePoint(vb.svc.dnd ? 0xF009B : 0xF009A); tint: vb.svc.dnd ? vb.dim : vb.fg
-            onHit: function(m) { vb.run(m.button === Qt.RightButton ? "\"$HOME/.local/bin/rice-cc\" dnd toggle" : "\"$HOME/.local/bin/rice-cc\" toggle"); svcAgain.restart() } }
+            onHit: function(m) { vb.run(m.button === Qt.RightButton ? "\"$HOME/.local/bin/rice-cc\" dnd toggle" : "\"$HOME/.local/bin/rice-cc\" toggle"); BarSvc.refreshSoon() } }
     }
     Component { id: cPower
         Btn { id: pbtn; icon: "power_settings_new"; glyph: String.fromCodePoint(0xF0425); tint: "#ff8a80"
@@ -433,6 +428,9 @@ PanelWindow {
     }
     Component { id: cSysmon
         Btn { icon: "monitoring"; glyph: String.fromCodePoint(0xF0128); onHit: function(m) { vb.pop("system") } }
+    }
+    Component { id: cMusic
+        Btn { icon: "music_note"; glyph: String.fromCodePoint(0xF075A); onHit: function(m) { vb.pop("music") } }
     }
     Component { id: cDate
         Btn { icon: "calendar_month"; glyph: String.fromCodePoint(0xF00F0); onHit: function(m) { vb.pop("calendar") } }

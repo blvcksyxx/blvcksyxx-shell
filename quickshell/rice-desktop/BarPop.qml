@@ -2,7 +2,8 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 
-// The small cards the bar's own modules open under them (Bar layout > Weather, System, Date):
+// The small cards the bar's own modules open under them (Bar layout > Music, Weather, System, Date):
+//   music     the song, its lyrics, the progress and the buttons (MusicPop.qml)
 //   weather   now, how it feels, high / low and the next hours (rice-weather json)
 //   system    CPU, RAM, disk and swap, each in a tile with a bar and the numbers (rice-stats)
 //   calendar  the month, this week with today, your to-do tasks (rice-todo) and how long the computer is up
@@ -17,6 +18,7 @@ Item {
     property bool open: false
     property var wx: null                       // the weather (the bar fetches it)
     property var st: ({})                       // the numbers (the bar reads them)
+    property var sink: null                     // the speakers (the music card's volume)
     function toggle(k, x) { if (open && kind === k) { open = false; return } kind = k; ax = x; open = true; if (k === "calendar") { todoProc.running = true; upProc.running = true; now = new Date() } }
     function close() { open = false }
 
@@ -26,7 +28,7 @@ Item {
     // t: 0 closed .. 1 open. Like the Dynamic island: the module's pill stretches out of the bar into the card
     // (a soft overshoot), the corners round off, and the content comes in once there is room for it
     property real t: 0
-    onOpenChanged: { tAnim.stop(); tAnim.to = open ? 1 : 0; tAnim.duration = open ? 560 : 260
+    onOpenChanged: { tAnim.stop(); tAnim.to = open ? 1 : 0; tAnim.duration = open ? (Look.lite ? 260 : 560) : (Look.lite ? 150 : 260)
         tAnim.easing.type = open ? Easing.OutBack : Easing.InCubic; tAnim.start() }
     NumberAnimation { id: tAnim; target: bp; property: "t"; easing.overshoot: 0.9 }
     // a new card while one is open (another module): the content cross-fades
@@ -34,8 +36,9 @@ Item {
     property real cf: 1
     SequentialAnimation { id: swap; NumberAnimation { target: bp; property: "cf"; to: 0; duration: 70 } NumberAnimation { target: bp; property: "cf"; to: 1; duration: 220; easing.type: Easing.OutCubic } }
     visible: t > 0.01
-    width: 330
-    height: (kind === "weather" ? wxCol.implicitHeight : (kind === "system" ? 228 : calCol.implicitHeight)) + 28
+    width: kind === "music" ? 412 : 330
+    Behavior on width { enabled: bp.t > 0.98; NumberAnimation { duration: 260; easing.type: Easing.OutCubic } }
+    height: (kind === "weather" ? wxCol.implicitHeight : (kind === "system" ? 228 : (kind === "music" ? musicCol.implicitHeight : calCol.implicitHeight))) + 28
     Behavior on height { enabled: bp.t > 0.98; NumberAnimation { duration: 260; easing.type: Easing.OutCubic } }
     x: Math.max(8, Math.min(areaW - width - 8, ax - width / 2))
     readonly property color fg: pal ? pal.fg : "#ECEDEE"
@@ -74,7 +77,7 @@ Item {
         y: bp.down ? y0 * (1 - bp.k) : y0 + (bp.height - height - y0) * bp.k
         opacity: Math.min(1, bp.t * 3)
         clip: true
-        SoftShadow { anchors.fill: bg; radius: bg.radius; on: Look.shadows && Look.shadowPanels; size: Look.shadowSize * 0.8; strength: Look.shadowStrength * bp.k1 }
+        Shadow { anchors.fill: bg; radius: bg.radius; on: Look.shadows && Look.shadowPanels; size: Look.shadowSize * 0.8; strength: Look.shadowStrength * bp.k1 }
         Rectangle { id: bg; anchors.fill: parent; radius: Math.min(height / 2, 24 + (1 - bp.k1) * 30); color: bp.pal ? bp.pal.surface : "#141414"; border.width: 1; border.color: bp.pal ? bp.pal.line : Qt.rgba(1, 1, 1, 0.06) }
         MouseArea { anchors.fill: parent }        // clicks inside do not fall through to the desktop
         // the content stays where it belongs while the shape opens over it
@@ -84,6 +87,15 @@ Item {
             width: bp.width; height: bp.height
             opacity: Math.max(0, (bp.k1 - 0.45) / 0.55) * bp.cf
             transform: Translate { y: (1 - bp.k1) * (bp.down ? -14 : 14) }
+
+    // ---------- music ----------
+    MusicPop {
+        id: musicCol
+        visible: bp.kind === "music"
+        x: 16; y: 14; width: parent.width - 32
+        bp: bp
+        sink: bp.sink
+    }
 
     // ---------- weather ----------
     Column {
@@ -147,20 +159,21 @@ Item {
         x: 14; y: 14; width: parent.width - 28; height: 228
         columns: 2; spacing: 8
         Repeater {
-            model: bp.sys
+            model: 4          // fixed: the tiles stay, their numbers change (bp.sys rebuilt them every reading)
             delegate: Rectangle {
+                readonly property var md: bp.sys[index]
                 width: (bp.width - 28 - 8) / 2; height: (228 - 8) / 2
                 radius: 20; color: bp.chip
-                MIcon { x: 14; y: 12; size: 18; name: modelData.icon; glyph: String.fromCodePoint(modelData.g); color: bp.acc }
-                Text { anchors.right: parent.right; anchors.rightMargin: 14; y: 9; text: modelData.v + "%"; color: bp.fg; font.family: Fonts.numbers; font.pixelSize: 19; font.weight: Font.DemiBold }
+                MIcon { x: 14; y: 12; size: 18; name: md.icon; glyph: String.fromCodePoint(md.g); color: bp.acc }
+                Text { anchors.right: parent.right; anchors.rightMargin: 14; y: 9; text: md.v + "%"; color: bp.fg; font.family: Fonts.numbers; font.pixelSize: 19; font.weight: Font.DemiBold }
                 Column { x: 14; y: 42; width: parent.width - 28; spacing: 1
-                    Text { text: modelData.n; color: bp.fg; font.family: Fonts.main; font.pixelSize: 13; font.weight: Font.DemiBold }
-                    Text { width: parent.width; elide: Text.ElideRight; text: modelData.d; color: bp.dim; font.family: Fonts.main; font.pixelSize: 10 } }
+                    Text { text: md.n; color: bp.fg; font.family: Fonts.main; font.pixelSize: 13; font.weight: Font.DemiBold }
+                    Text { width: parent.width; elide: Text.ElideRight; text: md.d; color: bp.dim; font.family: Fonts.main; font.pixelSize: 10 } }
                 Rectangle {
                     x: 14; width: parent.width - 28; height: 6; radius: 3
                     anchors.bottom: parent.bottom; anchors.bottomMargin: 13
                     color: Qt.rgba(bp.acc.r, bp.acc.g, bp.acc.b, 0.2)
-                    Rectangle { width: Math.max(6, parent.width * Math.min(1, modelData.v / 100)); height: 6; radius: 3; color: modelData.v >= 90 ? "#e06c75" : bp.acc
+                    Rectangle { width: Math.max(6, parent.width * Math.min(1, md.v / 100)); height: 6; radius: 3; color: md.v >= 90 ? "#e06c75" : bp.acc
                         Behavior on width { NumberAnimation { duration: 500; easing.type: Easing.OutCubic } } }
                 }
             }

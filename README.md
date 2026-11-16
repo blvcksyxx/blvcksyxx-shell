@@ -10,6 +10,7 @@
 <p align="center">
   <a href="https://shell.blvcksyxx.xyz"><img src="https://img.shields.io/badge/website-shell.blvcksyxx.xyz-8B7BFF?style=for-the-badge&labelColor=11111b&logo=googlechrome&logoColor=white" alt="Website"></a>
   <a href="#supported-systems"><img src="https://img.shields.io/badge/Arch_Linux-1793D1?style=for-the-badge&labelColor=11111b&logo=archlinux&logoColor=1793D1&color=1a1b26" alt="Arch Linux"></a>
+  <a href="#supported-systems"><img src="https://img.shields.io/badge/Artix_Linux-10A0CC?style=for-the-badge&labelColor=11111b&logo=artixlinux&logoColor=10A0CC&color=1a1b26" alt="Artix Linux"></a>
   <a href="#supported-systems"><img src="https://img.shields.io/badge/CachyOS-08A283?style=for-the-badge&labelColor=11111b&logo=cachyos&logoColor=08A283&color=1a1b26" alt="CachyOS"></a>
   <a href="#supported-systems"><img src="https://img.shields.io/badge/Fedora-51A2DA?style=for-the-badge&labelColor=11111b&logo=fedora&logoColor=51A2DA&color=1a1b26" alt="Fedora"></a>
   <a href="#supported-systems"><img src="https://img.shields.io/badge/NixOS-5277C3?style=for-the-badge&labelColor=11111b&logo=nixos&logoColor=7EBAE4&color=1a1b26" alt="NixOS"></a>
@@ -20,7 +21,7 @@
   <img src="https://img.shields.io/badge/Quickshell-QML-8B7BFF?style=for-the-badge&labelColor=11111b&logo=qt&logoColor=8B7BFF&color=1a1b26" alt="Quickshell">
 </p>
 <p align="center">
-  <a href="https://github.com/blvcksyxx/blvcksyxx-shell/releases/tag/v1.1"><img src="https://img.shields.io/badge/release-v1.1-8B7BFF?style=for-the-badge&labelColor=11111b&logo=github&logoColor=white" alt="blvcksyxx shell 1.1"></a>
+  <a href="https://github.com/blvcksyxx/blvcksyxx-shell/releases/tag/v1.11"><img src="https://img.shields.io/badge/release-v1.11-8B7BFF?style=for-the-badge&labelColor=11111b&logo=github&logoColor=white" alt="blvcksyxx shell 1.11"></a>
   <a href="https://github.com/blvcksyxx/blvcksyxx-shell/stargazers"><img src="https://img.shields.io/github/stars/blvcksyxx/blvcksyxx-shell?style=for-the-badge&labelColor=11111b&logo=starship&logoColor=f5c542&color=f5c542" alt="Stars"></a>
   <a href="https://github.com/blvcksyxx/blvcksyxx-shell/commits"><img src="https://img.shields.io/github/last-commit/blvcksyxx/blvcksyxx-shell?style=for-the-badge&labelColor=11111b&logo=git&logoColor=white&color=4c566a&label=updated" alt="Last commit"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-2ea043?style=for-the-badge&labelColor=11111b&logo=opensourceinitiative&logoColor=white" alt="MIT license"></a>
@@ -59,10 +60,10 @@ Screenshots of the running shell. More on the [website](https://shell.blvcksyxx.
 </p>
 <p align="center">
   <a href="https://shell.blvcksyxx.xyz/#previews"><img src="assets/screenshots/settings-notifications.webp" alt="blvcksyxx shell notifications" width="49%"></a>
-  <a href="https://shell.blvcksyxx.xyz/#previews"><img src="assets/screenshots/settings-update.webp" alt="blvcksyxx shell Update Center v1.1" width="49%"></a>
+  <a href="https://shell.blvcksyxx.xyz/#previews"><img src="assets/screenshots/settings-update.webp" alt="blvcksyxx shell Update Center v1.11" width="49%"></a>
 </p>
 
-**v1.1 highlights:** Task view and `ALT + Tab`, custom keybinds in Settings, Weather / System / Date bar cards, new desktop widgets and frame rate, whole-look themes with app colors, and a safer Update Center. Full list in the [release notes](docs/releases/v1.1.md).
+**v1.11 highlights:** the new screenshot tool, Infinite Desktop with a moving wallpaper, the Material 3 lock screen, clipboard history, the wallpaper carousel, window rules and the shell's own login screen. Full list in the [release notes](docs/releases/v1.11.md).
 
 ## Supported systems
 The bar, the welcome window and Settings show **your distro's logo** automatically.
@@ -73,6 +74,7 @@ The bar, the welcome window and Settings show **your distro's logo** automatical
 | **Arch Linux** | supported | `./install.sh` |
 | **CachyOS** | supported | `./install.sh` (Arch based: its repositories and `paru` are used) |
 | **EndeavourOS, Garuda** | Arch route | `./install.sh` |
+| **Artix Linux** | supported | `./install.sh` (OpenRC, runit, s6 or dinit: Arch's repos turned on, services with your init, a login session with D-Bus) |
 | **Fedora, Nobara** | supported | `./install.sh` (COPR for Hyprland and Quickshell) |
 | **Bazzite, Silverblue** | commands only | the installer prints the `rpm-ostree` steps |
 | **Manjaro** | may not work | its packages are held back, Hyprland can be older than 0.55 |
@@ -104,6 +106,7 @@ blvcksyxx shell is a **Linux desktop shell**. It is a set of Hyprland/niri confi
 
 ## Install in one minute
 Pick your system, paste the three lines, then log out, choose **Hyprland** or **niri** on the login screen and press `SUPER + U`.
+Use `git clone` as below, not the ZIP from Releases: a ZIP copy cannot update itself (`rice-update` turns one into a git copy).
 
 **Arch Linux / CachyOS / EndeavourOS / Garuda**
 ```bash
@@ -124,7 +127,8 @@ git clone https://github.com/blvcksyxx/blvcksyxx-shell && cd blvcksyxx-shell
 git clone https://github.com/blvcksyxx/blvcksyxx-shell && cd blvcksyxx-shell
 # add to /etc/nixos/configuration.nix:
 #   imports = [ /path/to/blvcksyxx-shell/nix/module.nix ];
-#   programs.blvcksyxx-shell.user = "yourname";    # Infinite Desktop: SUPER + ALT + mouse (input group)
+#   programs.blvcksyxx-shell.user = "yourname";
+#   programs.blvcksyxx-shell.inputGroup = true;    # only for Infinite Desktop (SUPER + ALT + mouse)
 sudo nixos-rebuild switch && ./install.sh
 ```
 
@@ -167,6 +171,8 @@ The installer asks which window manager you want (Hyprland, niri or both), insta
 | **Monitors** | resolution, refresh rate, scale, rotation, arrangement and turning a screen off, on Hyprland and niri |
 | **Bar layout** | five ready-made Material 3 layouts, and drag and drop the modules between left, center and right: launcher, workspaces, window title, music, the island (your clock), tray (right-click an app: its menu and Close app; long menus scroll), volume, Bluetooth, Wi-Fi, battery, notifications, power, a music visualizer; the window title with its app icon on the left or right |
 | **Dock** | bottom, left or right edge, its own app menu with search, pinned favourite apps (also in Settings > Dock), open apps, hover to reveal, media player, tinted icons; windows keep away from it while it stays out |
+| **Window rules** | Settings > Desktop > Window rules: your own rules for any app (workspace, floating, centered, size, on every workspace, fullscreen, see-through), picked from the windows open now; kept in `~/.config/rice/rules.json`, so updates never touch them. An optional **gaming workspace**: games (Steam, Proton, Wine, gamescope, Minecraft) and their launchers open on their own workspace |
+| **Login screen** | the shell's own SDDM theme in Material 3: your wallpaper and a big clock; a key press blurs it and brings up the login card (your picture, session, keyboard layout, sleep, restart, shut down). It follows your wallpaper, colors, font and language. Settings > Desktop > Idle & Lockscreen > Login screen, or `rice-sddm install`. NixOS: `programs.blvcksyxx-shell.sddm = true;` |
 | **Hyprland & niri** | gaps, borders, rounding, blur, shadows and animations from sliders, no config editing, on either window manager |
 | **Theme** | 21 color schemes: Auto and Grey from your wallpaper, six monochrome (Mono, Slate, Stone, Steel, Ash, Ink) and thirteen colors (Navy, Ocean, Sky, Teal, Mint, Forest, Lime, Gold, Sunset, Ember, Rose, Orchid, Violet). They recolor Waybar, borders, notifications and the lock screen |
 | **Control center** | `SUPER + N` or the bell: switches, sliders, music with a wavy, seekable progress line and your notifications, with smooth Material 3 motion |
@@ -207,7 +213,7 @@ The installer asks which window manager you want (Hyprland, niri or both), insta
 | `SUPER + 1 … 0` | go to workspace |
 | `SUPER + SHIFT + 1 … 0` | move window to workspace |
 | `SUPER + S` | show/hide scratchpad |
-| `SUPER + SHIFT + S` | move window to scratchpad |
+| `SUPER + SHIFT + S` | screenshot tool (same as `Print`) |
 | `SUPER + scroll` | next/previous workspace |
 | `SUPER + left mouse` | drag window |
 | `SUPER + right mouse` | resize window |

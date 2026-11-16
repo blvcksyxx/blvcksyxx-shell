@@ -29,7 +29,7 @@ Item {
     readonly property bool dynamic: cfg.island_dynamic !== false
     function on(k) { return dynamic && cfg[k] !== false }
 
-    Player { id: pl; running: isl.visible }
+    Instantiator { model: isl.visible ? 1 : 0; delegate: QtObject { Component.onCompleted: Player.hold(); Component.onDestruction: Player.release() } }
     readonly property var source: Pipewire.defaultAudioSource
     PwObjectTracker { objects: [isl.source] }
     readonly property bool micMuted: source && source.audio ? source.audio.muted : false
@@ -45,7 +45,7 @@ Item {
     property string infoTab: "today"           // today | system
     readonly property string mode: flash !== "" ? flash : (bar && bar.recOn ? "rec" : "idle")
     readonly property string cardWant: note ? "notif"
-        : (infoOpen ? "info" : ((pinned || hoverOpen) && pl.has && !ghost ? "media" : ""))
+        : (infoOpen ? "info" : ((pinned || hoverOpen) && Player.has && !ghost ? "media" : ""))
     readonly property bool big: cardWant !== ""
     function show(what, ms) { if (flash !== what) bump.restart(); flash = what; flashT.interval = ms; flashT.restart() }
     // something new in the island: it gives a small squeeze, like a drop landing
@@ -103,7 +103,7 @@ Item {
     }
     // rice-dashboard open / island: the info card (the dashboard is the island now)
     Trigger {
-        path: Quickshell.env("HOME") + "/.cache/rice/island-open"
+        path: isl.bar && isl.bar.extra ? "" : Quickshell.env("HOME") + "/.cache/rice/island-open"
         every: 1500
         onFired: function(line) {
             const p = String(line).trim().split(/\s+/)
@@ -196,6 +196,7 @@ Item {
     }
 
     // ---------- its size ----------
+    readonly property bool showDate: cfg.island_date !== false
     readonly property real tw: {
         switch (mode) {
         case "volume": case "mic": return 300
@@ -241,15 +242,15 @@ Item {
         if (hovering) { closeT.stop(); pinT.stop(); if (on("island_hover") && !big && !ghost) openT.restart() }
         else { openT.stop(); closeT.restart(); if (pinned || infoOpen) pinT.restart() }
     }
-    Timer { id: openT; interval: 280; onTriggered: isl.hoverOpen = pl.has }
+    Timer { id: openT; interval: 280; onTriggered: isl.hoverOpen = Player.has }
     Timer { id: closeT; interval: 450; onTriggered: isl.hoverOpen = false }
     Timer { id: pinT; interval: Math.max(2, isl.cfg.island_close || 4) * 1000; onTriggered: { isl.pinned = false; isl.infoOpen = false } }
     // the player closes by itself when nothing plays any more
     onPlayingChanged: if (!playing && !hovering) { pinT.restart(); closeT.restart() }
-    readonly property bool playing: pl.playing
+    readonly property bool playing: Player.playing
 
     // ---------- the shape ----------
-    SoftShadow { anchors.fill: bg; radius: bg.radius; on: Look.shadows && Look.shadowBar && !isl.flatRest && !isl.ghost; size: Look.shadowSize * 0.5; strength: Look.shadowStrength }
+    Shadow { anchors.fill: bg; radius: bg.radius; on: Look.shadows && Look.shadowBar && !isl.flatRest && !isl.ghost; size: Look.shadowSize * 0.5; strength: Look.shadowStrength }
     Rectangle {
         id: bg
         anchors.fill: parent
@@ -275,14 +276,19 @@ Item {
                 // on whole pixels, so the time is sharp and sits straight in the middle
                 x: Math.round((parent.width - width) / 2); y: Math.round((parent.height - height) / 2)
                 spacing: 9
-                ShapeImage { visible: pl.playing; width: 22; height: 22; anchors.verticalCenter: parent.verticalCenter
-                    kind: Look.shape; source: pl.art; empty: isl.pal ? isl.pal.container : "#333"; fallbackColor: isl.pal ? isl.pal.inkContainer : "#ccc"
-                    SlowSpin { turn: 360; period: 9000; running: pl.playing && !Look.lite } }
-                Text { anchors.verticalCenter: parent.verticalCenter; text: isl.bar ? isl.bar.timeText : ""
+                ShapeImage { visible: Player.playing; width: 22; height: 22; anchors.verticalCenter: parent.verticalCenter
+                    kind: Look.shape; source: Player.art; empty: isl.pal ? isl.pal.container : "#333"; fallbackColor: isl.pal ? isl.pal.inkContainer : "#ccc"
+                    SlowSpin { turn: 360; period: 9000; running: Player.playing && isl.pillMode === "idle" && !Look.lite } }
+                // the date (as the bar's Date module) and the time in a pill in your key color
+                Text { visible: isl.showDate; anchors.verticalCenter: parent.verticalCenter
+                    text: isl.bar ? Qt.locale().dayName(isl.bar.now.getDay(), Locale.ShortFormat) + ", " + isl.bar.two(isl.bar.now.getDate()) + "/" + isl.bar.two(isl.bar.now.getMonth() + 1) : ""
+                    color: isl.pal ? isl.pal.fg : "white"; font.family: Fonts.main; font.pixelSize: 13; font.weight: Font.Medium }
+                Rectangle { visible: isl.showDate; anchors.verticalCenter: parent.verticalCenter
+                    width: tp.implicitWidth + 18; height: isl.bh - 14; radius: height / 2; color: isl.pal ? isl.pal.primary : "#8f8"
+                    Text { id: tp; anchors.centerIn: parent; text: isl.bar ? isl.bar.timeText : ""; color: isl.pal ? isl.pal.inkPrimary : "black"
+                        font.family: Fonts.numbers; font.pixelSize: 13; font.weight: Font.DemiBold } }
+                Text { visible: !isl.showDate; anchors.verticalCenter: parent.verticalCenter; text: isl.bar ? isl.bar.timeText : ""
                     color: isl.pal ? isl.pal.fg : "white"; font.family: Fonts.main; font.pixelSize: 14; font.weight: Font.DemiBold }
-                // Settings > Dynamic island: the date and the weather beside the time
-                Text { visible: isl.cfg.island_date === true; anchors.verticalCenter: parent.verticalCenter; text: isl.bar ? isl.bar.dateText : ""
-                    color: isl.pal ? isl.pal.dim : "#aaa"; font.family: Fonts.main; font.pixelSize: 13; font.weight: Font.Medium }
                 Row {
                     visible: isl.cfg.island_weather !== false && isl.wTemp !== ""
                     anchors.verticalCenter: parent.verticalCenter; spacing: 4
@@ -292,7 +298,7 @@ Item {
                     Text { anchors.verticalCenter: parent.verticalCenter; text: isl.wTemp.replace(/[CF]$/, ""); color: isl.pal ? isl.pal.dim : "#aaa"
                         font.family: Fonts.main; font.pixelSize: 13; font.weight: Font.Medium }
                 }
-                Eq { visible: pl.playing; anchors.verticalCenter: parent.verticalCenter; h: 14; go: isl.pillMode === "idle" }
+                Eq { visible: Player.playing; anchors.verticalCenter: parent.verticalCenter; h: 14; go: isl.pillMode === "idle" }
             }
         }
 
@@ -542,7 +548,7 @@ Item {
     }
 
     // ---------- the card: the player or a notification, just beside the bar ----------
-    SoftShadow { anchors.fill: card; radius: card.radius; on: Look.shadows && Look.shadowBar; opacity: card.opacity; size: Look.shadowSize; strength: Look.shadowStrength }
+    Shadow { anchors.fill: card; radius: card.radius; on: Look.shadows && Look.shadowBar; opacity: card.opacity; size: Look.shadowSize; strength: Look.shadowStrength }
     Rectangle {
         id: card
         // it is the island growing: at 0 it sits exactly on the island, at 1 it is the card beside the bar
@@ -606,7 +612,7 @@ Item {
                     Tab { id: tToday; label: Tr.t("Today"); icon: "calendar_today"; on: isl.infoTab === "today"; onHit: isl.infoTab = "today" }
                     Tab { id: tSys; label: Tr.t("System"); icon: "memory"; on: isl.infoTab === "system"; onHit: isl.infoTab = "system" }
                     Tab { id: tAbout; label: Tr.t("About"); icon: "info"; on: isl.infoTab === "about"; onHit: isl.infoTab = "about" }
-                    Tab { visible: pl.has; label: Tr.t("Music"); icon: "music_note"; on: false
+                    Tab { visible: Player.has; label: Tr.t("Music"); icon: "music_note"; on: false
                         onHit: { isl.infoOpen = false; isl.pinned = true; if (!isl.hovering) pinT.restart() } }
                 }
             }
@@ -834,44 +840,44 @@ Item {
             name: "media"; inCard: true; width: 470; height: 184
             ShapeImage {
                 x: 16; y: 16; width: 78; height: 78
-                kind: Look.shape; source: pl.art
+                kind: Look.shape; source: Player.art
                 empty: isl.pal ? isl.pal.container : "#333"; fallbackColor: isl.pal ? isl.pal.inkContainer : "#ccc"
             }
             Column {
                 x: 110; y: 18; width: parent.width - 110 - 70; spacing: 3
-                Text { text: (pl.p && pl.p.identity ? pl.p.identity : Tr.t("Music")).toUpperCase(); color: isl.pal ? isl.pal.primary : "#aaa"
+                Text { text: (Player.p && Player.p.identity ? Player.p.identity : Tr.t("Music")).toUpperCase(); color: isl.pal ? isl.pal.primary : "#aaa"
                     font.family: Fonts.main; font.pixelSize: 10; font.weight: Font.Bold; font.letterSpacing: 1.2 }
-                Text { width: parent.width; elide: Text.ElideRight; text: pl.title; color: isl.pal ? isl.pal.fg : "white"
+                Text { width: parent.width; elide: Text.ElideRight; text: Player.title; color: isl.pal ? isl.pal.fg : "white"
                     font.family: Fonts.main; font.pixelSize: 17; font.weight: Font.DemiBold }
-                Text { width: parent.width; elide: Text.ElideRight; text: pl.artist; color: isl.pal ? isl.pal.dim : "#aaa"; font.family: Fonts.main; font.pixelSize: 13 }
+                Text { width: parent.width; elide: Text.ElideRight; text: Player.artist; color: isl.pal ? isl.pal.dim : "#aaa"; font.family: Fonts.main; font.pixelSize: 13 }
             }
             // a wave that moves while it plays
-            Eq { x: parent.width - 58; y: 22; h: 22; bars: 5; go: isl.big && pl.playing && isl.cardMode === "media" }
-            Text { x: 16; y: 110; width: 38; text: pl.clock(pl.pos); color: isl.pal ? isl.pal.dim : "#aaa"; font.family: Fonts.numbers; font.pixelSize: 11 }
+            Eq { x: parent.width - 58; y: 22; h: 22; bars: 5; go: isl.big && Player.playing && isl.cardMode === "media" }
+            Text { x: 16; y: 110; width: 38; text: Player.clock(Player.pos); color: isl.pal ? isl.pal.dim : "#aaa"; font.family: Fonts.numbers; font.pixelSize: 11 }
             WavyLine {
                 x: 56; y: 105; width: parent.width - 112; height: 22
-                value: pl.frac; moving: pl.playing; seekable: true
+                value: Player.frac; moving: Player.playing; seekable: true
                 color: isl.pal ? isl.pal.primary : "white"; track: isl.pal ? isl.pal.track : "#444"
-                onMoved: function(v) { pl.seekTo(v) }
+                onMoved: function(v) { Player.seekTo(v) }
             }
             Text { x: parent.width - 52; y: 110; width: 38; horizontalAlignment: Text.AlignRight
-                text: pl.length > 0 ? "-" + pl.clock(pl.length - pl.pos) : ""; color: isl.pal ? isl.pal.dim : "#aaa"; font.family: Fonts.numbers; font.pixelSize: 11 }
+                text: Player.length > 0 ? "-" + Player.clock(Player.length - Player.pos) : ""; color: isl.pal ? isl.pal.dim : "#aaa"; font.family: Fonts.numbers; font.pixelSize: 11 }
             Row {
                 anchors.horizontalCenter: parent.horizontalCenter; y: 134
                 spacing: 22
-                Btn { icon: "skip_previous"; onHit: pl.prev() }
+                Btn { icon: "skip_previous"; onHit: Player.prev() }
                 // play / pause: your shape while it plays, a circle while it waits; pressing squeezes it
                 Item {
                     width: 40; height: 40; anchors.verticalCenter: parent.verticalCenter
-                    Blob { anchors.fill: parent; kind: pl.playing ? Look.shape : "circle"; color: isl.pal ? isl.pal.primary : "white"
+                    Blob { anchors.fill: parent; kind: Player.playing ? Look.shape : "circle"; color: isl.pal ? isl.pal.primary : "white"
                         scale: pm.pressed ? 0.86 : (pm.containsMouse ? 1.06 : 1)
                         Behavior on scale { NumberAnimation { duration: 220; easing.type: Easing.OutBack } }
-                        SlowSpin { turn: 360; period: 12000; running: pl.playing && !Look.lite } }
-                    MIcon { anchors.centerIn: parent; size: 20; filled: true; name: pl.playing ? "pause" : "play_arrow"; glyph: ""
+                        SlowSpin { turn: 360; period: 12000; running: Player.playing && isl.big && isl.cardMode === "media" && !Look.lite } }
+                    MIcon { anchors.centerIn: parent; size: 20; filled: true; name: Player.playing ? "pause" : "play_arrow"; glyph: ""
                         color: isl.pal ? isl.pal.inkPrimary : "black" }
-                    MouseArea { id: pm; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: pl.toggle() }
+                    MouseArea { id: pm; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Player.toggle() }
                 }
-                Btn { icon: "skip_next"; onHit: pl.next() }
+                Btn { icon: "skip_next"; onHit: Player.next() }
             }
             MouseArea { x: parent.width - 40; y: parent.height - 40; width: 30; height: 30; cursorShape: Qt.PointingHandCursor
                 visible: isl.pinned; onClicked: isl.pinned = false
@@ -914,7 +920,7 @@ Item {
                 property real lv: 0.4
                 height: Math.max(4, eq.h * lv)
                 SequentialAnimation on lv {
-                    running: eq.go && !Look.lite; loops: Animation.Infinite
+                    running: eq.go && eq.visible && !Look.lite; loops: Animation.Infinite
                     NumberAnimation { to: 1.0; duration: 260 + index * 70; easing.type: Easing.InOutSine }
                     NumberAnimation { to: 0.3 + (index % 2) * 0.15; duration: 300 + index * 50; easing.type: Easing.InOutSine }
                     NumberAnimation { to: 0.75; duration: 220 + index * 90; easing.type: Easing.InOutSine }

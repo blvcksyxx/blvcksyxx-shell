@@ -16,8 +16,16 @@ import QtQuick
 // style is dynamic now. Auto-hide: it slides away and a thin strip at the edge brings it back.
 // What sits where comes from ~/.config/rice/bar.json (layout: left, center, right).
 PanelWindow {
-    screen: Mon.screen
     id: bar
+    // the main bar lives on the main screen; Bar on every screen (Mon.everywhere) makes a copy for each other screen.
+    // A copy shows the same, but commands from scripts (open the island, the calendar ...) go to the main bar only
+    property var scr: null
+    readonly property bool extra: scr !== null
+    screen: scr ? scr : Mon.screen
+    // one rice-services and one rice-weather for every bar (BarSvc.qml): a copy for another screen only reads them
+    onOnChanged: if (!bar.extra) BarSvc.shown = bar.on || bar.ghostOnly
+    onGhostOnlyChanged: if (!bar.extra) BarSvc.shown = bar.on || bar.ghostOnly
+    Component.onCompleted: if (!bar.extra) BarSvc.shown = bar.on || bar.ghostOnly
 
     // ---------- settings (~/.config/rice/bar.json) ----------
     property var bc: ({})
@@ -66,19 +74,23 @@ PanelWindow {
     readonly property bool shadowOn: bc.shadow !== false && Look.shadows && Look.shadowBar
     // auto-hide: shown while the pointer is on it (and a moment after it leaves)
     property bool peek: false
-    readonly property bool shownBar: !hideOn || peek || !on
+    // Infinite Desktop: it gets out of the way while you move the canvas (SUPER + ALT + mouse)
+    readonly property bool shownBar: (!hideOn || peek || !on) && !(on && Infinite.hideUi)
     Timer { id: leaveT; interval: 700; onTriggered: bar.peek = false }
     readonly property bool island: sty === "island"
     readonly property bool floating: sty !== "flat"
     // The island is the clock (an old "clock" in the layout is the island now)
     function noClock(l) { return (l || []).map(function(m) { return m === "clock" ? "island" : m }) }
     readonly property var layRaw: bc.layout ? ({ left: noClock(bc.layout.left), center: noClock(bc.layout.center), right: noClock(bc.layout.right) })
-        : ({ left: ["launcher", "workspaces", "title"], center: ["island"], right: ["tray", "volume", "bluetooth", "network", "battery", "notifications", "power"] })
+        : ({ left: ["launcher", "workspaces", "title"], center: ["island"], right: ["music", "tray", "volume", "bluetooth", "network", "battery", "notifications", "power"] })
     function laid(l, k) { return (l.left || []).indexOf(k) >= 0 || (l.center || []).indexOf(k) >= 0 || (l.right || []).indexOf(k) >= 0 }
-    // the island is a module of the layout ("island", any zone, any style, with modules beside it). Dynamic without
-    // it in the layout puts it in the middle, as before
-    readonly property var lay: dyn && !laid(layRaw, "island")
-        ? ({ left: layRaw.left || [], center: ["island"], right: layRaw.right || [] }) : layRaw
+    // the island is a module of the layout ("island", any zone, any style, with modules beside it). Taken out in
+    // Bar layout (island_off) the bar has no island, only its cards (clock card, volume, notifications) stay.
+    // A layout from before that (no island in it, no island_off) still gets the island in the middle of the
+    // middle zone, and the modules that were in the middle stay (they were lost: the zone became just the island)
+    function withIsland(c) { const a = (c || []).slice(); a.splice(Math.floor(a.length / 2), 0, "island"); return a }
+    readonly property var lay: dyn && bc.island_off !== true && !laid(layRaw, "island")
+        ? ({ left: layRaw.left || [], center: withIsland(layRaw.center), right: layRaw.right || [] }) : layRaw
     readonly property bool hasIsland: on && laid(lay, "island")
     property Item islSlot: null                 // where the island sits in its zone
     readonly property bool islAlone: ["left", "center", "right"].some(function(z) { const m = lay[z] || []; return m.length === 1 && m[0] === "island" })
@@ -281,14 +293,7 @@ PanelWindow {
     readonly property bool charging: batt && (batt.state === UPowerDeviceState.Charging || batt.state === UPowerDeviceState.FullyCharged)
     readonly property bool plugged: hasBatt && !UPower.onBattery
 
-    property var svc: ({})
-    Process {
-        id: svcProc
-        command: ["bash", "-c", "\"$HOME/.local/bin/rice-services\" state 2>/dev/null"]
-        stdout: StdioCollector { onStreamFinished: { try { bar.svc = JSON.parse(text) } catch (e) { } } }
-    }
-    Timer { interval: 8000; running: bar.on; repeat: true; triggeredOnStart: true; onTriggered: if (!svcProc.running) svcProc.running = true }
-    Timer { id: svcAgain; interval: 700; onTriggered: if (!svcProc.running) svcProc.running = true }
+    readonly property var svc: BarSvc.state
 
     property var now: new Date()
     Timer { interval: bc.seconds === true ? 1000 : 15000; running: bar.on || bar.ghostOnly; repeat: true; triggeredOnStart: true; onTriggered: bar.now = new Date() }
@@ -325,7 +330,7 @@ PanelWindow {
         case "visualizer": return mViz
         case "weather": return mWeather
         case "sysmon": return mSysmon
-        case "date": return mDate
+        case "music": return mMusic
         }
         return null
     }
@@ -657,7 +662,7 @@ PanelWindow {
                 name: bar.svc.dnd ? "notifications_off" : "notifications"
                 glyph: String.fromCodePoint(bar.svc.dnd ? 0xF009B : 0xF009A) }
             MouseArea { id: dm; anchors.fill: parent; hoverEnabled: true; acceptedButtons: Qt.LeftButton | Qt.RightButton; cursorShape: Qt.PointingHandCursor
-                onClicked: function(m) { bar.run(m.button === Qt.RightButton ? "\"$HOME/.local/bin/rice-cc\" dnd toggle" : "\"$HOME/.local/bin/rice-cc\" toggle"); svcAgain.restart() } }
+                onClicked: function(m) { bar.run(m.button === Qt.RightButton ? "\"$HOME/.local/bin/rice-cc\" dnd toggle" : "\"$HOME/.local/bin/rice-cc\" toggle"); BarSvc.refreshSoon() } }
             HoverLine { on: dm.containsMouse; color: bar.fg }
         }
     }
@@ -690,21 +695,14 @@ PanelWindow {
     }
 
     // ---------- Weather, System, Date: small modules that open a card under them (BarPop.qml) ----------
-    property var wx: null
-    Process {
-        id: wxProc
-        command: [bar.home + "/.local/bin/rice-weather", "json"]
-        stdout: StdioCollector { onStreamFinished: { try { const j = JSON.parse(text.trim().split("\n").pop()); if (j && j.temp !== undefined) bar.wx = j } catch (e) { } } }
-    }
-    Timer { interval: 1800000; running: (bar.on || bar.ghostOnly) && (bar.hasMod("weather") || barPop.open); repeat: true; triggeredOnStart: true; onTriggered: if (!wxProc.running) wxProc.running = true }
-    property var st: ({})
-    Process {
-        command: [bar.home + "/.local/bin/rice-stats", "3"]
-        running: (bar.on || bar.ghostOnly) && (bar.hasMod("sysmon") || (barPop.open && barPop.kind === "system"))
-        stdout: SplitParser { onRead: function(l) { try { bar.st = JSON.parse(l) } catch (e) { } } }
-    }
+    readonly property var wx: BarSvc.wx
+    // every 30 minutes, as before; the process itself is shared (BarSvc.qml) and refuses to run twice
+    Timer { interval: 1800000; running: (bar.on || bar.ghostOnly) && (bar.hasMod("weather") || barPop.open); repeat: true; triggeredOnStart: true; onTriggered: BarSvc.refreshWx() }
+    // one rice-stats for the whole shell (Stats.qml)
+    readonly property var st: Stats.st
+    StatsHold { on: (bar.on || bar.ghostOnly) && (bar.hasMod("sysmon") || (barPop.open && barPop.kind === "system")) }
     // a side bar (VBar.qml) opens these cards too: "KIND" in ~/.cache/rice/barpop-open
-    Trigger { name: "barpop-open"; onFired: function(o) { const p = o.trim().split(" "); barPop.toggle(p[1] || "calendar", p[2] !== undefined ? parseFloat(p[2]) : 200) } }
+    Trigger { name: bar.extra ? "" : "barpop-open"; onFired: function(o) { const p = o.trim().split(" "); barPop.toggle(p[1] || "calendar", p[2] !== undefined ? parseFloat(p[2]) : 200) } }
     function popAt(it, k) { const p = it.mapToItem(body, it.width / 2, 0); barPop.fromW = it.width + 16; barPop.toggle(k, p.x) }
 
     Component { id: mWeather
@@ -722,13 +720,18 @@ PanelWindow {
         Item { property bool shown: true; width: sr.implicitWidth + 4; height: bar.barH
             Row { id: sr; anchors.centerIn: parent; spacing: 6
                 Repeater {
-                    model: [["memory", 0xF035B, bar.st.cpu || 0], ["memory_alt", 0xF061A, bar.st.ram || 0], ["hard_drive", 0xF02CA, bar.st.disk || 0]]
+                    // a fixed model: the rings stay and only their value moves (a model built from the numbers made
+                    // all three again at every reading, so they blinked out every few seconds)
+                    model: [["memory", 0xF035B, "cpu"], ["memory_alt", 0xF061A, "ram"], ["hard_drive", 0xF02CA, "disk"]]
                     delegate: Item {
                         width: 24; height: 24; anchors.verticalCenter: parent.verticalCenter
+                        // the use, gliding to each new reading
+                        property real use: Math.max(0, Math.min(100, bar.st[modelData[2]] || 0)) / 100
+                        Behavior on use { NumberAnimation { duration: 900; easing.type: Easing.OutCubic } }
                         // a ring that fills with the use
                         Canvas {
                             anchors.fill: parent
-                            readonly property real v: modelData[2] / 100
+                            readonly property real v: parent.use
                             readonly property color c: bar.goo ? gp.primary : bar.fg
                             onVChanged: requestPaint(); onCChanged: requestPaint()
                             onPaint: {
@@ -745,23 +748,37 @@ PanelWindow {
             HoverLine { on: sm2.containsMouse; color: bar.fg }
         }
     }
-    Component { id: mDate
-        Item { property bool shown: true; width: dr.implicitWidth + 4; height: bar.barH
-            Row { id: dr; anchors.centerIn: parent; spacing: 8
-                Text { anchors.verticalCenter: parent.verticalCenter; color: bar.fg; font.family: Fonts.main; font.pixelSize: 13; font.weight: Font.Medium
-                    text: Qt.locale().dayName(bar.now.getDay(), Locale.ShortFormat) + ", " + bar.two(bar.now.getDate()) + "/" + bar.two(bar.now.getMonth() + 1) }
-                Rectangle {
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: dt.implicitWidth + 18; height: bar.barH - 14; radius: height / 2
-                    color: gp.primary
-                    Text { id: dt; anchors.centerIn: parent; color: gp.inkPrimary; font.family: Fonts.numbers; font.pixelSize: 12; font.weight: Font.DemiBold
-                        text: bar.h12 ? ((bar.now.getHours() + 11) % 12 + 1) + ":" + bar.two(bar.now.getMinutes()) : bar.two(bar.now.getHours()) + ":" + bar.two(bar.now.getMinutes()) }
+    // Music: a note (three small bars dancing while a song plays); a click opens the music card
+    Component { id: mMusic
+        Item { property bool shown: true; width: mu.width; height: bar.barH
+            Rectangle {
+                id: mu
+                anchors.centerIn: parent
+                readonly property bool playing: bar.player !== null
+                // nothing plays: just the note, as narrow as the other icons; a song: a pill with the bars
+                width: playing ? 46 : 24; height: bar.barH - 12; radius: height / 2
+                Behavior on width { NumberAnimation { duration: 320; easing.type: Easing.OutBack } }
+                color: playing ? (bar.goo ? gp.primary : Qt.rgba(1, 1, 1, mum.containsMouse ? 0.16 : 0.08))
+                               : (mum.containsMouse ? Qt.rgba(1, 1, 1, 0.1) : "transparent")
+                Behavior on color { ColorAnimation { duration: 200 } }
+                scale: mum.pressed ? 0.92 : (mum.containsMouse ? 1.05 : 1)
+                Behavior on scale { NumberAnimation { duration: 160; easing.type: Easing.OutBack } }
+                readonly property color ic: bar.goo && playing ? gp.inkPrimary : bar.fg
+                Row { anchors.centerIn: parent; spacing: 3
+                    MIcon { anchors.verticalCenter: parent.verticalCenter; size: 16; name: "music_note"; glyph: String.fromCodePoint(0xF075A); color: mu.ic }
+                    Row { visible: mu.playing; anchors.verticalCenter: parent.verticalCenter; spacing: 2; height: 12
+                        Repeater { model: 3
+                            Rectangle { width: 3; radius: 1.5; anchors.bottom: parent.bottom; color: mu.ic
+                                property real h: 4
+                                height: h
+                                SequentialAnimation on h { running: mu.playing && !Look.lite; loops: Animation.Infinite
+                                    NumberAnimation { to: 12; duration: 280 + index * 80; easing.type: Easing.InOutSine }
+                                    NumberAnimation { to: 3; duration: 320 + index * 60; easing.type: Easing.InOutSine } } } } }
                 }
             }
-            MouseArea { id: dm2; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { Sfx.play("click"); bar.popAt(parent, "calendar") } }
+            MouseArea { id: mum; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { Sfx.play("click"); bar.popAt(parent, "music") } }
         }
     }
-
     Component { id: mPower
         Item { property bool shown: true; width: 22; height: bar.barH
             MIcon { anchors.centerIn: parent; name: "power_settings_new"; glyph: String.fromCodePoint(0xF0425); size: 18; color: pm.containsMouse ? "#ff6b6b" : bar.dim
@@ -776,11 +793,9 @@ PanelWindow {
     }
 
     // each workspace has its own color: your key color turned around the color wheel
-    function wsTint(id) {
-        const c = gp.primary
-        const h = (c.hslHue < 0 ? 0.55 : c.hslHue) + (id - 1) * 0.12
-        return Qt.hsla(h - Math.floor(h), gp.mono ? 0 : Math.max(0.35, c.hslSaturation), c.hslLightness, 1)
-    }
+    // the workspace you are on, in the bar and the island: the wallpaper's color (it used to turn a little around the
+    // color wheel for every workspace, so each one had its own color)
+    function wsTint(id) { return gp.primary }
 
     // ---------- one side of the bar: a row of modules ----------
     component Zone: Rectangle {
@@ -952,6 +967,7 @@ PanelWindow {
             areaW: body.width
             wx: bar.wx
             st: bar.st
+            sink: bar.sink
             barH: bar.barH
             y: down ? bar.barH + 8 : -height - 8
             z: 41

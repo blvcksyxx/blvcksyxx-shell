@@ -12,12 +12,30 @@ fi
 FAMILY=other
 case " $DISTRO_ID $DISTRO_LIKE " in
   *" nixos "*) FAMILY=nixos ;;
-  *" arch "*|*" archlinux "*|*" cachyos "*|*" endeavouros "*|*" manjaro "*|*" garuda "*) FAMILY=arch ;;
+  *" arch "*|*" archlinux "*|*" artix "*|*" cachyos "*|*" endeavouros "*|*" manjaro "*|*" garuda "*) FAMILY=arch ;;
   *" fedora "*|*" nobara "*|*" ultramarine "*) FAMILY=fedora ;;
 esac
 # the flavour inside a family, for messages (CachyOS, EndeavourOS, Manjaro, Nobara, Bazzite ...)
 DISTRO_FLAVOR="$DISTRO_ID"
 case "$FAMILY" in arch|fedora) : ;; *) DISTRO_FLAVOR="$FAMILY" ;; esac
+# the init system: systemd, or (Artix, Void) OpenRC, runit, s6, dinit. Without systemd the installer turns services on
+# with that init, installs Artix's service scripts (NAME-openrc ...), and the session starts PipeWire itself
+INIT_SYS=other
+if [ -d /run/systemd/system ]; then INIT_SYS=systemd
+else
+  case "$(cat /proc/1/comm 2>/dev/null)" in
+    runit*) INIT_SYS=runit ;; dinit*) INIT_SYS=dinit ;; s6-svscan*) INIT_SYS=s6 ;;
+    *) if [ -d /run/openrc ]; then INIT_SYS=openrc
+       elif [ -d /run/runit ] || [ -d /etc/runit/sv ]; then INIT_SYS=runit
+       elif [ -d /run/s6-rc ] || [ -d /etc/s6/sv ]; then INIT_SYS=s6
+       elif [ -d /etc/dinit.d ]; then INIT_SYS=dinit; fi ;;
+  esac
+fi
+# Artix: the service script packages for its init (networkmanager-openrc ...), the ones that exist are installed
+ARTIX_SVC_PKGS=(elogind dbus networkmanager bluez power-profiles-daemon)
+# the services turned on at boot without systemd (Bluetooth and power modes are turned on where they are installed)
+ARTIX_SERVICES=(dbus elogind NetworkManager)
+
 # the Hyprland config is Lua, which needs Hyprland 0.55 or newer
 HYPR_MIN_MAJOR=0; HYPR_MIN_MINOR=55
 # Fedora Atomic (Bazzite, Silverblue, Kinoite...): packages are layered with rpm-ostree, not dnf
@@ -27,8 +45,8 @@ if [ "$FAMILY" = fedora ] && [ -e "${OSTREE_BOOTED:-/run/ostree-booted}" ]; then
 # Arch packages, grouped so the installer can explain what it is doing.
 PKG_DESKTOP=(hyprland hyprlock hypridle xdg-desktop-portal-hyprland xdg-desktop-portal-gtk hyprpolkitagent qt5-wayland qt6-wayland)
 PKG_SHELL=(quickshell qt6-multimedia waybar swaync awww cava kitty fish fastfetch nautilus matugen)
-PKG_TOOLS=(wf-recorder grim slurp wl-clipboard libnotify xdg-user-dirs jq curl python playerctl brightnessctl pamixer
-           imagemagick ffmpeg mpvpaper zenity networkmanager bluez bluez-utils pipewire pipewire-pulse wireplumber
+PKG_TOOLS=(wf-recorder grim slurp wl-clipboard cliphist wtype libnotify xdg-user-dirs jq curl python playerctl brightnessctl pamixer
+           imagemagick ffmpeg mpvpaper zenity networkmanager bluez bluez-utils pipewire pipewire-pulse pipewire-audio wireplumber
            btop cmatrix peaclock pavucontrol gnome-calendar hyprsunset upower power-profiles-daemon)
 PKG_FONTS=(ttf-jetbrains-mono-nerd ttf-nerd-fonts-symbols noto-fonts noto-fonts-emoji inter-font)
 # adwaita-cursors: a cursor from the repositories, so there is always one (Bibata is in the AUR; without an
@@ -62,7 +80,7 @@ FEDORA_COPRS=(nett00n/hyprland errornointernet/quickshell scottames/awww)
 FPKG_DESKTOP=(hyprland hyprlock hypridle hyprsunset hyprpolkitagent xdg-desktop-portal-hyprland xdg-desktop-portal-gtk
               qt5-qtwayland qt6-qtwayland)
 FPKG_SHELL=(quickshell qt6-qtmultimedia waybar SwayNotificationCenter awww cava kitty fish fastfetch nautilus matugen)
-FPKG_TOOLS=(wf-recorder grim slurp wl-clipboard libnotify xdg-user-dirs jq curl python3 playerctl brightnessctl pamixer
+FPKG_TOOLS=(wf-recorder grim slurp wl-clipboard cliphist wtype libnotify xdg-user-dirs jq curl python3 playerctl brightnessctl pamixer
             ImageMagick "ffmpeg-free|ffmpeg" mpvpaper zenity NetworkManager bluez pipewire pipewire-pulseaudio wireplumber
             btop cmatrix pavucontrol gnome-calendar upower power-profiles-daemon tar xz unzip)
 FPKG_FONTS=(rsms-inter-fonts google-noto-sans-fonts google-noto-emoji-fonts)

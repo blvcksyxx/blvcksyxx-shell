@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""rice-lock: idle timers (hypridle) and the lock screen (hyprlock). Settings > Idle & Lockscreen.
+"""rice-lock: idle timers (hypridle) and the lock screen. Settings > Idle & Lockscreen.
 
   rice-lock state | set KEY VALUE | apply | reset | restore
   rice-lock now                                 lock the screen (hypridle, SUPER + L, the power menu ...)
@@ -10,8 +10,7 @@
 
 The lock screen is the shell's own (Quickshell, ~/.config/quickshell/rice-lockscreen), in Material 3.
 It locks with the Wayland session-lock protocol and checks the password with PAM. If it does not lock within a
-few seconds or quits without unlocking, hyprlock takes over, so you are never locked out. engine = hyprlock keeps
-the old hyprlock screen.
+few seconds or quits without unlocking, hyprlock takes over, so you are never locked out.
 """
 import fcntl
 import json
@@ -39,18 +38,17 @@ DEFAULTS = {
     # idle
     "lock_after": 5, "screen_off_after": 0, "suspend_after": 15, "lock_before_sleep": True,
     # lock screen
-    "managed": True, "layout": "center", "clock": "big", "clock_24h": True, "accent_clock": False, "clock_font": "default",
+    "managed": True, "style": "cards", "layout": "center", "clock": "big", "clock_24h": True, "accent_clock": False, "clock_font": "default",
     "date": True, "greeting": True, "avatar": True, "input": "pill", "power": True,
     "background": "screenshot", "blur": 3, "dim": 0.5,
     "media": True, "resources": False, "notifications": True, "weather": False,
-    "engine": "shell",
 }
 INTS = {"lock_after": (0, 120), "screen_off_after": (0, 120), "suspend_after": (0, 240), "blur": (0, 4)}
 FLOATS = {"dim": (0.2, 1.0)}
 # clock fonts (rice-fonts downloads them; "default" is your Numbers font from Settings > Services)
 CLOCK_FONTS = {"default": "", "bebas": "Bebas Neue", "orbitron": "Orbitron", "outfit": "Outfit",
                "grotesk": "Space Grotesk", "unbounded": "Unbounded", "shoulders": "Big Shoulders Display"}
-CHOICES = {"engine": ["shell", "hyprlock"], "layout": ["center", "left"], "clock": ["big", "stacked", "minimal", "shape"], "clock_font": list(CLOCK_FONTS),
+CHOICES = {"style": ["cards", "classic"], "layout": ["center", "left"], "clock": ["big", "stacked", "minimal", "shape"], "clock_font": list(CLOCK_FONTS),
            "input": ["pill", "box", "line"], "background": ["screenshot", "wallpaper", "color"]}
 
 
@@ -339,9 +337,19 @@ def greet():
     print("%s, %s" % (g, os.environ.get("USER") or getpass.getuser()))
 
 
+def shell_notify():
+    try:
+        return json.load(open(HOME + "/.config/rice/cc.json")).get("engine") == "shell"
+    except Exception:
+        return False
+
+
 def notif():
     try:
-        n = int(subprocess.run(["swaync-client", "-c"], capture_output=True, text=True, timeout=2).stdout.strip() or 0)
+        if shell_notify():
+            n = int(open(HOME + "/.cache/rice/notif-count").read().strip() or 0)
+        else:
+            n = int(subprocess.run(["swaync-client", "-c", "-sw"], capture_output=True, text=True, timeout=2).stdout.strip() or 0)
     except Exception:
         n = 0
     print("" if n <= 0 else "%s  %d notification%s" % (chr(0xF009A), n, "" if n == 1 else "s"))
@@ -377,8 +385,11 @@ def notif_count():
             return
     except Exception:
         pass
+    if shell_notify():
+        print(0)
+        return
     try:
-        print(int(subprocess.run(["swaync-client", "-c"], capture_output=True, text=True, timeout=2).stdout.strip() or 0))
+        print(int(subprocess.run(["swaync-client", "-c", "-sw"], capture_output=True, text=True, timeout=2).stdout.strip() or 0))
     except Exception:
         print(0)
 
@@ -390,11 +401,16 @@ ACTIVE = HOME + "/.cache/rice/lock-active"
 SHOT = HOME + "/.cache/rice/lock-shot.png"
 FALLBACK = HOME + "/.cache/rice/lock-fallback"
 # the parts it shares with the desktop shell (copied from rice-desktop when they are newer)
-SHARED = ["Look", "Fonts", "DashFont", "MIcon", "T", "Blob", "ShapeImage", "WavyLine", "WavyArc", "Player",
-          "RoundImage", "NPal", "Trigger", "SoftShadow"]
+SHARED = ["Look", "Fonts", "DashFont", "MIcon", "T", "Blob", "ShapeImage", "WavyLine", "WavyArc",
+          "RoundImage", "NPal", "Trigger", "Shadow", "Tr"]
 
 
 def sync_shared():
+    # the desktop's Player is a singleton; an old copy of it here would stop the lock screen from loading
+    try:
+        os.remove(LOCKQS + "/Player.qml")
+    except OSError:
+        pass
     for n in SHARED:
         src, dst = QS + "/rice-desktop/%s.qml" % n, LOCKQS + "/%s.qml" % n
         try:
@@ -434,9 +450,19 @@ def wall_path():
 def lock_now(preview=False, test=False):
     c = load()
     qs = qs_bin()
-    if not preview and (running("hyprlock") or our_lock_running()):
-        return
-    if c["engine"] == "hyprlock" or not qs or not os.path.exists(LOCKQS + "/shell.qml"):
+    if not preview:
+        # two locks at the same moment (hypridle's timeout and SUPER + L) both passed the check and both started a
+        # lock screen. The first keeps this lock for as long as it locks (hyprlock() waits until you unlock), and a
+        # second one does not wait for it: waiting would lock the screen again right after you unlocked it
+        os.makedirs(HOME + "/.cache/rice", exist_ok=True)
+        lk = open(HOME + "/.cache/rice/lock.lock", "w")
+        try:
+            fcntl.flock(lk, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError:
+            return
+        if running("hyprlock") or our_lock_running():
+            return
+    if not qs or not os.path.exists(LOCKQS + "/shell.qml"):
         if not preview:
             hyprlock()
         return

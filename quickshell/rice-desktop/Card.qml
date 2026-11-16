@@ -19,7 +19,7 @@ Rectangle {
     border.width: pal ? pal.edgeWidth : 1
     border.color: pal ? pal.edge : Qt.rgba(1, 1, 1, 0.10 * k)
     // a soft shadow under the card (Settings > Desktop > Windows > Shell shadows)
-    SoftShadow { z: -1; anchors.fill: parent; radius: parent.radius; on: Look.shadows && Look.shadowWidgets && parent.k > 0.02 && parent.color.a > 0.05
+    Shadow { z: -1; anchors.fill: parent; radius: parent.radius; on: Look.shadows && Look.shadowWidgets && parent.k > 0.02 && parent.color.a > 0.05
         size: Look.shadowSize * 0.8; strength: Look.shadowStrength * 0.8 }
     // a soft light along the top edge of the glass
     Rectangle {

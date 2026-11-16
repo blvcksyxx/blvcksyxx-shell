@@ -11,6 +11,8 @@ Singleton {
     property real scroll: 1.8
     // the language of Settings (Settings > System > Languages): "en", "pl", "pt-BR" ...
     property string lang: "en"
+    // the window is on screen (shell.qml): what looks again every few seconds rests while Settings waits hidden
+    property bool shown: true
     function setLang(v) { lang = v; save("lang", v) }
     // the live pictures at the top of some pages (Home > Settings > Previews); off by default
     property bool previews: false
@@ -57,9 +59,10 @@ Singleton {
 
     function save(key, value) {
         Quickshell.execDetached(["python3", "-c",
-            "import json,os,sys\np=os.path.expanduser('~/.config/rice/settings-app.json')\n" +
+            "import fcntl,json,os,sys\np=os.path.expanduser('~/.config/rice/settings-app.json')\n" +
+            "os.makedirs(os.path.dirname(p),exist_ok=True)\nl=open(p+'.lock','w');fcntl.flock(l,fcntl.LOCK_EX)\n" +
             "try: d=json.load(open(p))\nexcept Exception: d={}\nd[sys.argv[1]]=json.loads(sys.argv[2])\n" +
-            "os.makedirs(os.path.dirname(p),exist_ok=True)\njson.dump(d,open(p,'w'))",
+            "json.dump(d,open(p+'.tmp','w'))\nos.replace(p+'.tmp',p)",
             key, JSON.stringify(value)])
     }
     function setScroll(v) {

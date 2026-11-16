@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
+import fcntl
 import json
 import os
 import re
 import shutil
 import subprocess
 import sys
+import time
 
 HOME = os.path.expanduser("~")
 DIR = HOME + "/.config/rice"
@@ -12,6 +14,7 @@ ST = DIR + "/hypr.json"
 OUT = HOME + "/.config/hypr/rice-settings.lua"
 MAIN = HOME + "/.config/hypr/hyprland.lua"
 PREV = DIR + "/monitor-prev.json"
+LOCK = DIR + "/.hypr.lock"
 FLAG = DIR + "/border-custom"
 BIN = HOME + "/.local/bin"
 # niri runs the shell: the same settings are written into niri's config (rice-niri) instead of sent to Hyprland
@@ -149,7 +152,9 @@ def rgba(h):
 
 
 def mon_rate(x):
-    return ("%.2f" % float(x)).rstrip("0").rstrip(".")
+    # niri wants the refresh rate exactly as `niri msg outputs` shows it, down to the third decimal (74.973, not
+    # 74.97: a mode that does not match is dropped and the screen stays at 60 Hz). Hyprland takes two.
+    return (("%.3f" if NIRI else "%.2f") % float(x)).rstrip("0").rstrip(".")
 
 
 # Motion styles (Settings > Motion). calm = the curves of hyprland.lua; the spring ones use Hyprland's spring curves.
@@ -243,6 +248,14 @@ def anim_lines(pct, style="calm"):
     return out
 
 
+def kbd_clean(v):
+    """a layout / variant / options value as XKB wants it: 'pl,us', 'grp:alt_shift_toggle'. A value read from a
+    config line can carry its quotes and the comma after it ('"us",' once broke the keyboard)"""
+    v = str(v or "").strip().strip(",;").strip().strip("\"'").strip()
+    v = ",".join(p.strip().strip("\"'") for p in v.split(","))
+    return v if re.fullmatch(r"[A-Za-z0-9_:()+\-]*(,[A-Za-z0-9_:()+\-]*)*", v) else ""
+
+
 def load():
     try:
         s = json.load(open(ST))
@@ -250,6 +263,14 @@ def load():
         s = {}
     for k, d in (("opts", {}), ("borders", {}), ("anim", {}), ("monitors", {}), ("binds", []), ("autostart", []), ("kbd", {})):
         s.setdefault(k, d)
+    if not isinstance(s["kbd"], dict):
+        s["kbd"] = {}
+    # a broken value saved by an older version is mended here; a plain "us" is the default, so nothing is set
+    for k in ("layouts", "variants", "options"):
+        if k in s["kbd"]:
+            s["kbd"][k] = kbd_clean(s["kbd"][k])
+    if s["kbd"].get("layouts", "") in ("", "us"):
+        s["kbd"].pop("layouts", None)
     return s
 
 
@@ -287,11 +308,18 @@ def generate(s):
     return "\n".join(L) + "\n"
 
 
+def write_atomic(path, text):
+    tmp = path + ".tmp"
+    with open(tmp, "w") as f:
+        f.write(text)
+    os.replace(tmp, path)
+
+
 def save(s):
     os.makedirs(DIR, exist_ok=True)
-    json.dump(s, open(ST, "w"), indent=2)
+    write_atomic(ST, json.dumps(s, indent=2))
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
-    open(OUT, "w").write(generate(s))
+    write_atomic(OUT, generate(s))
     if NIRI:
         niri_apply()
 
@@ -468,6 +496,39 @@ def cmd_binds():
         d = (str(b.get("dispatcher", "")) + " " + str(b.get("arg", ""))).strip()
         act.append("%s  ->  %s" % (keys, b.get("description") or d))
     print(json.dumps({"custom": s["binds"], "active": act[:120]}))
+
+
+def cmd_keycheck(fix=""):
+    """a key bound with no modifier (a plain letter or digit) eats that key: you cannot type it anywhere.
+    Lists them; `keycheck fix` takes them off (written to ~/.cache/rice/keycheck.log)"""
+    if NIRI:
+        print("[]")
+        return
+    try:
+        data = json.loads(sh(["hyprctl", "-j", "binds"]))
+    except Exception:
+        data = []
+    bad = []
+    for b in data:
+        if b.get("modmask", 0) or b.get("mouse") or b.get("submap"):
+            continue
+        key = str(b.get("key") or "")
+        code = int(b.get("keycode", 0) or 0)
+        # letters, digits, space and the punctuation keys; or a key code in the letter rows (10-61)
+        if (len(key) == 1 and (key.isalnum() or key in "`-=[];',./\\")) or key.lower() == "space" or (not key and 10 <= code <= 61):
+            bad.append({"key": key or "code:%d" % code, "does": (str(b.get("description") or "") or
+                        (str(b.get("dispatcher", "")) + " " + str(b.get("arg", ""))).strip())})
+    if fix and bad:
+        os.makedirs(HOME + "/.cache/rice", exist_ok=True)
+        with open(HOME + "/.cache/rice/keycheck.log", "a") as f:
+            for x in bad:
+                ok = ev("hl.unbind(%s)" % json.dumps(x["key"]))
+                f.write("%s  took off a bind on the plain key %s (%s)%s\n" % (time.strftime("%Y-%m-%d %H:%M"), x["key"], x["does"], "" if ok else " FAILED"))
+        if shutil.which("notify-send"):
+            subprocess.Popen(["notify-send", "-a", "blvcksyxx shell", "A key could not be typed",
+                              "Something bound the plain key %s, so it never reached your apps. It is free again "
+                              "(details: ~/.cache/rice/keycheck.log)." % ", ".join(x["key"] for x in bad)])
+    print(json.dumps(bad))
 
 
 def cmd_bind_add(keys, cmd):
@@ -920,6 +981,86 @@ def cmd_kbd_set(layouts):
     print("Keyboard: " + ", ".join(lays))
 
 
+def kbd_from_files():
+    """the layout written in your Hyprland config files (hyprland.lua and the files next to it, before the update
+    replaces them), and in niri's config: kb_layout = "pl" / layout "pl" """
+    found = {}
+    hd = HOME + "/.config/hypr"
+    files = [hd + "/hyprland.lua"]
+    try:
+        files += sorted(hd + "/" + f for f in os.listdir(hd) if f.endswith((".lua", ".conf")) and f != "hyprland.lua")
+    except OSError:
+        pass
+    files.append(HOME + "/.config/niri/config.kdl")
+    pats = {"layouts": (r'kb_layout\s*=\s*"([^"]*)"', r'^\s*kb_layout\s*=\s*([^\s#]+)', r'^\s*layout\s+"([^"]*)"'),
+            "variants": (r'kb_variant\s*=\s*"([^"]*)"', r'^\s*kb_variant\s*=\s*([^\s#]+)', r'^\s*variant\s+"([^"]*)"'),
+            "options": (r'kb_options\s*=\s*"([^"]*)"', r'^\s*kb_options\s*=\s*([^\s#]+)', r'^\s*options\s+"([^"]*)"')}
+    for f in files:
+        try:
+            txt = "\n".join(ln for ln in open(f, errors="replace").read().splitlines() if not ln.lstrip().startswith(("--", "#", "//")))
+        except OSError:
+            continue
+        lay = ""
+        for pat in pats["layouts"]:
+            m = re.search(pat, txt, re.M)
+            v = kbd_clean(m.group(1)) if m else ""
+            if v and v != "us":
+                lay = v
+                break
+        if lay:
+            found["layouts"] = lay
+            for k in ("variants", "options"):
+                for pat in pats[k]:
+                    m = re.search(pat, txt, re.M)
+                    if m:
+                        found[k] = kbd_clean(m.group(1))
+                        break
+            return found
+    return found
+
+
+def cmd_kbd_remember():
+    """Before an update: the keyboard layout in use now (set by hand in hyprland.lua or niri's config, or by another
+    tool) is kept in hypr.json when the Settings app has none, so the update does not put the keyboard back to US.
+    Hyprland is asked first; when it cannot answer (niri, a terminal without Hyprland, a getoption that answers in
+    another shape), the config files are read."""
+    s = load()
+    if s["kbd"].get("layouts"):
+        return
+    k = {}
+    if not NIRI and shutil.which("hyprctl"):
+        def opt(n):
+            try:
+                j = json.loads(sh(["hyprctl", "-j", "getoption", "input:" + n])) or {}
+            except Exception:
+                return ""
+            for key in ("str", "value", "data"):
+                v = j.get(key)
+                if isinstance(v, str) and v.strip() and v.strip() != "[[EMPTY]]":
+                    return v.strip()
+            return ""
+        lay = kbd_clean(opt("kb_layout"))
+        if lay and lay != "us":
+            k = {"layouts": lay, "variants": kbd_clean(opt("kb_variant")), "options": kbd_clean(opt("kb_options"))}
+    if not k:
+        k = kbd_from_files()
+    if not k.get("layouts"):
+        return
+    s["kbd"]["layouts"] = k["layouts"]
+    s["kbd"]["variants"] = k.get("variants", "")
+    s["kbd"]["options"] = k.get("options", "")
+    save(s)
+    print("Keyboard layout kept: " + k["layouts"])
+
+
+def cmd_regen():
+    """Writes rice-settings.lua again from hypr.json (after an update put the shipped one in its place)"""
+    if os.path.exists(ST):
+        s = load()
+        os.makedirs(os.path.dirname(OUT), exist_ok=True)
+        open(OUT, "w").write(generate(s))
+
+
 def cmd_kbd_options(opts):
     if opts and not re.fullmatch(r"[a-z0-9_:,]+", opts):
         die("bad options")
@@ -939,7 +1080,7 @@ def cmd_reset_all():
     for f in (ST, PREV, FLAG):
         if os.path.exists(f):
             os.remove(f)
-    open(OUT, "w").write("-- generated by rice-settings (hypr-set)\n")
+    write_atomic(OUT, "-- generated by rice-settings (hypr-set)\n")
     cmd_reload()
 
 
@@ -953,7 +1094,8 @@ def main(a):
         "state": (0, cmd_state), "set": (2, cmd_set), "border-mode": (1, cmd_border_mode),
         "border-color": (2, cmd_border_color), "anim-enabled": (1, cmd_anim_enabled),
         "anim-speed": (1, cmd_anim_speed), "monitor-save-all": (0, cmd_monitor_save_all), "anim-style": (1, cmd_anim_style), "binds": (0, cmd_binds), "bind-add": (2, cmd_bind_add),
-        "bind-del": (1, cmd_bind_del), "autostart": (0, cmd_autostart), "autostart-add": (1, cmd_autostart_add),
+        "kbd-remember": (0, cmd_kbd_remember), "regen": (0, cmd_regen),
+        "bind-del": (1, cmd_bind_del), "keycheck": (0, cmd_keycheck), "keycheck-fix": (0, lambda: cmd_keycheck("fix")), "autostart": (0, cmd_autostart), "autostart-add": (1, cmd_autostart_add),
         "autostart-del": (1, cmd_autostart_del), "autostart-toggle": (1, cmd_autostart_toggle),
         "monitors": (0, cmd_monitors), "monitor-apply": (4, cmd_monitor_apply),
         "monitor-keep": (0, cmd_monitor_keep), "monitor-revert": (0, cmd_monitor_revert),
@@ -965,6 +1107,10 @@ def main(a):
     }
     if c not in table or len(r) != table[c][0]:
         die("bad command or arguments: " + c)
+    # one writer at a time (theme apply + a Settings slider): a half-written file would reset every setting
+    os.makedirs(DIR, exist_ok=True)
+    lk = open(LOCK, "w")
+    fcntl.flock(lk, fcntl.LOCK_EX)
     table[c][1](*r)
 
 

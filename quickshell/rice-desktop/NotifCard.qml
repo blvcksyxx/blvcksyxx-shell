@@ -43,7 +43,7 @@ Item {
     onWaitsChanged: { if (waits) { lifeAnim.duration = Math.max(400, nc.life * remain); lifeAnim.restart() } else lifeAnim.stop() }
     onRemainChanged: if (remain <= 0.001 && nc.waits) nc.timedOut()
 
-    SoftShadow { anchors.fill: bg; radius: bg.radius; on: nc.popup && Look.shadows && Look.shadowNotif; size: Look.shadowSize * 0.75; strength: Look.shadowStrength * 0.9 }
+    Shadow { anchors.fill: bg; radius: bg.radius; on: nc.popup && Look.shadows && Look.shadowNotif; size: Look.shadowSize * 0.75; strength: Look.shadowStrength * 0.9 }
     Rectangle {
         id: bg
         anchors.fill: parent
