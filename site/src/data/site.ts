@@ -12,12 +12,12 @@ export const site = {
   installDocs:
     'https://github.com/blvcksyxx/blvcksyxx-shell/blob/main/docs/INSTALL.md',
   releases:
-    'https://github.com/blvcksyxx/blvcksyxx-shell/releases/tag/v1.1',
+    'https://github.com/blvcksyxx/blvcksyxx-shell/releases/tag/v2.1.0',
   releaseNotes:
-    'https://github.com/blvcksyxx/blvcksyxx-shell/blob/main/docs/releases/v1.1.md',
-  version: 'v1.1',
+    'https://github.com/blvcksyxx/blvcksyxx-shell/blob/main/docs/releases/v2.1.0.md',
+  version: 'v2.1.0',
   description:
-    'blvcksyxx shell is a Linux desktop shell for Hyprland and niri: Task view, bar cards, widgets, dynamic island, control center and a Material 3 settings app.',
+    'blvcksyxx shell is a Linux desktop shell for Hyprland and niri: Task view, bar cards, widgets, dynamic island, control center, a game library, privacy controls, local AI tools and a Material 3 settings app.',
 } as const;
 
 export const nav = [
@@ -32,48 +32,104 @@ export const nav = [
 export const whatsNew = [
   {
     num: '01',
-    title: 'Task view and Alt + Tab',
-    body: 'Every workspace becomes a live screen with its windows. Type to find a window, drag it to another workspace, close it, or hold Alt and Tab through the windows you used last. On Hyprland and niri.',
-    tags: ['SUPER + Tab', 'ALT + Tab', 'niri'],
+    title: 'Windows, stacks and your own keys',
+    body: 'Minimize with SUPER + H and bring the last one back with SUPER + SHIFT + H. SUPER + T starts a stack (tabs), SUPER + CTRL + Left / Right walks it, and SUPER + CTRL + SHIFT + Left / Right puts a window into it. Do not like a key? Settings > Keybinds turns any window manager key off so you can give it something of your own.',
+    tags: ['SUPER + H', 'SUPER + T', 'custom keys'],
   },
   {
     num: '02',
-    title: 'Your keys, on one page',
-    body: 'Settings > Keybinds now keeps the shell keys and your own commands together. Put any app or script on the keys you pick, including the Task view and the switcher.',
-    tags: ['custom binds', 'search', 'pencil'],
+    title: 'Login screen clocks',
+    body: 'The SDDM login screen now has five clock styles: classic, stacked, center, pill and shapes. Classic is the default here. Pick one in Settings > Desktop > Idle & Lockscreen > Login screen, or with rice-sddm clock STYLE.',
+    tags: ['5 clocks', 'classic default', 'rice-sddm'],
   },
   {
     num: '03',
-    title: 'Weather, System and Date on the bar',
-    body: 'Three new bar modules grow out of their pill into Material 3 cards: the forecast, CPU / RAM / disk / swap, and the month with today and your tasks. They open beside a side bar too.',
-    tags: ['bar cards', 'forecast', 'system'],
+    title: 'Launcher favourites',
+    body: 'Right-click an app in the launcher, or press Ctrl + D, and it comes first with a star. Your most-used apps stay at the top without editing a config file.',
+    tags: ['right click', 'Ctrl + D', 'star'],
   },
   {
     num: '04',
-    title: 'More widgets, smoother motion',
-    body: 'Forecast, Music card and Date & time join the desktop. One Material You card style, a frame-rate choice (30, 60, 120 or Screen), and widgets that step back while windows are open.',
-    tags: ['widgets', '120 Hz', 'Material You'],
+    title: 'Toolbox: games, notes and local text',
+    body: 'SUPER + X opens a Toolbox with two new tabs. Games lists Steam, Lutris and menu games, with search and one click to launch. Auto summarizes, translates English and Russian, extracts facts and makes tasks with local Ollama. The Note tab now writes Markdown with Edit and Preview, and Chat can index your notes and answer with the files it used.',
+    tags: ['games', 'Markdown', 'Ollama', 'RAG'],
   },
   {
     num: '05',
-    title: 'Whole-look themes and app colors',
-    body: 'Switch the entire shell in one click: blvcksyxx, Terminal, Glass, Neon, Ember or Frost. Carry the same palette into VSCodium / VS Code and Discord.',
-    tags: ['6 themes', 'VSCode', 'Discord'],
+    title: 'Themes and your own key colour',
+    body: 'Save the whole look you have now under a name, export it as JSON, import it on another computer. Or take any #RRGGBB colour in Settings > Appearance > Colors and the bar, notifications, widgets and apps are made from it. Themes live in ~/.config/rice/themes.',
+    tags: ['theme editor', '#RRGGBB', 'export / import'],
   },
   {
     num: '06',
-    title: 'Security and a safer updater',
-    body: 'The Security page stays: ClamAV scans, system checks and a watch on the shell files. The Update Center keeps local changes aside when git pull cannot run, so an update still goes through.',
-    tags: ['ClamAV', 'stash', 'rollback'],
+    title: 'Privacy, clipboard and a lighter shell',
+    body: 'Settings > Security shows the microphone, camera and screen in use, locks the screen now, clears the clipboard, sets private DNS, switches the firewall and lists what Flatpak apps may reach. A new clipboard widget keeps the newest copies on the desktop. Under it all, V4.84 makes the shell much lighter: the task view lets its pictures go, waves draw 30 times a second, and Settings quits a minute after you close it unless you keep it ready.',
+    tags: ['privacy', 'clipboard', 'lighter'],
   },
 ] as const;
 
 export const previews = [
   {
     src: '/screenshots/settings-home.webp',
-    alt: 'blvcksyxx shell Settings home with the welcome card, light mode switches and quick links',
+    alt: 'blvcksyxx shell Settings home with the welcome card, profiles and quick links',
     title: 'Settings · Home',
     caption: 'The whole desktop at a glance: theme, uptime, distro and the switches you reach for.',
+    wide: true,
+  },
+  {
+    src: '/screenshots/settings-toolbox.webp',
+    alt: 'blvcksyxx shell Toolbox settings page with side, width, transparency and blur controls',
+    title: 'Toolbox',
+    caption: 'Games, local text work, Markdown notes and a chat that reads your files.',
+    wide: false,
+  },
+  {
+    src: '/screenshots/settings-keybinds.webp',
+    alt: 'blvcksyxx shell Keybinds page with searchable shortcut groups and key caps',
+    title: 'Keybinds',
+    caption: 'Every shell key, and the window manager keys you free for your own actions.',
+    wide: false,
+  },
+  {
+    src: '/screenshots/settings-login.webp',
+    alt: 'blvcksyxx shell Idle and Lockscreen page with a login screen clock preview',
+    title: 'Login screen',
+    caption: 'Classic, stacked, center, pill and shapes — Classic is the default.',
+    wide: false,
+  },
+  {
+    src: '/screenshots/settings-launcher.webp',
+    alt: 'blvcksyxx shell Launcher page with Wallpaper, Onyx, Graphite, Midnight, Rose and Paper themes',
+    title: 'Launcher',
+    caption: 'Six looks, files and conversions; right-click an app to keep it first.',
+    wide: false,
+  },
+  {
+    src: '/screenshots/settings-theme.webp',
+    alt: 'blvcksyxx shell Themes page with six whole looks and your own saved themes',
+    title: 'Themes',
+    caption: 'Six whole looks, your own saved themes, export and import as JSON.',
+    wide: false,
+  },
+  {
+    src: '/screenshots/settings-colors.webp',
+    alt: 'blvcksyxx shell Colors page with every color role and a custom key color field',
+    title: 'Colors',
+    caption: 'Every role, plus any #RRGGBB as the shell’s key colour.',
+    wide: false,
+  },
+  {
+    src: '/screenshots/settings-security.webp',
+    alt: 'blvcksyxx shell Security page with devices in use, autolock, clipboard, private DNS, firewall and app permissions',
+    title: 'Security & privacy',
+    caption: 'Devices in use, autolock, clipboard, DNS, firewall and Flatpak permissions.',
+    wide: false,
+  },
+  {
+    src: '/screenshots/settings-update.webp',
+    alt: 'blvcksyxx shell Update Center showing V2.1.0 is up to date',
+    title: 'Update Center · v2.1.0',
+    caption: 'You are up to date. Signed updates, local changes kept aside.',
     wide: true,
   },
   {
@@ -84,24 +140,10 @@ export const previews = [
     wide: false,
   },
   {
-    src: '/screenshots/settings-theme.webp',
-    alt: 'blvcksyxx shell Color theme page with Auto, Grey, six monochrome and thirteen fixed palettes',
-    title: 'Color theme',
-    caption: 'Twenty-one palettes: Auto and Grey from your wallpaper, six monochrome, thirteen colors.',
-    wide: false,
-  },
-  {
     src: '/screenshots/settings-widgets.webp',
     alt: 'blvcksyxx shell Widgets page with Weather, Media, Resources, User card, Calendar and Visualizer toggles',
     title: 'Desktop widgets',
-    caption: 'Frosted glass widgets, blur and transparency, and a frame rate for the moving parts.',
-    wide: false,
-  },
-  {
-    src: '/screenshots/settings-keybinds.webp',
-    alt: 'blvcksyxx shell Keybinds page with searchable shortcut groups and editable key caps',
-    title: 'Keybinds',
-    caption: 'Every shell shortcut and your own keybinds on one searchable page.',
+    caption: 'Frosted glass widgets, blur, transparency and a frame rate for the moving parts.',
     wide: false,
   },
   {
@@ -109,13 +151,6 @@ export const previews = [
     alt: 'blvcksyxx shell Notifications page with a live example notification and pop-up placement controls',
     title: 'Notifications',
     caption: 'Google-style pop-ups, a live preview, action buttons and a notification center.',
-    wide: true,
-  },
-  {
-    src: '/screenshots/settings-update.webp',
-    alt: 'blvcksyxx shell Update Center showing V1.1 is available with Update now and Check for updates buttons',
-    title: 'Update Center · v1.1',
-    caption: 'Update in place, with local changes kept aside if git pull needs room.',
     wide: false,
   },
 ] as const;

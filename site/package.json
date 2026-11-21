@@ -1,7 +1,7 @@
 {
   "name": "blvcksyxx-shell-site",
   "private": true,
-  "version": "1.1.0",
+  "version": "2.1.0",
   "type": "module",
   "scripts": {
     "dev": "astro dev --host 127.0.0.1 --port 4321",

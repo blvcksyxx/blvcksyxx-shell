@@ -1,7 +1,7 @@
 {
   "name": "blvcksyxx shell",
   "short_name": "blvcksyxx",
-  "description": "blvcksyxx shell v1.1: a complete Linux desktop shell for Hyprland and niri.",
+  "description": "blvcksyxx shell v2.1.0: a complete Linux desktop shell for Hyprland and niri.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#050505",
