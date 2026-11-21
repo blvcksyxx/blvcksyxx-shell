@@ -47,7 +47,8 @@ PKG_DESKTOP=(hyprland hyprlock hypridle xdg-desktop-portal-hyprland xdg-desktop-
 PKG_SHELL=(quickshell qt6-multimedia waybar swaync awww cava kitty fish fastfetch nautilus matugen)
 PKG_TOOLS=(wf-recorder grim slurp wl-clipboard cliphist wtype libnotify xdg-user-dirs jq curl python playerctl brightnessctl pamixer
            imagemagick ffmpeg mpvpaper zenity networkmanager bluez bluez-utils pipewire pipewire-pulse pipewire-audio wireplumber
-           btop cmatrix peaclock pavucontrol gnome-calendar hyprsunset upower power-profiles-daemon)
+           btop cmatrix peaclock pavucontrol gnome-calendar hyprsunset upower power-profiles-daemon
+           tesseract tesseract-data-eng tesseract-data-rus translate-shell fd plocate)
 PKG_FONTS=(ttf-jetbrains-mono-nerd ttf-nerd-fonts-symbols noto-fonts noto-fonts-emoji inter-font)
 # adwaita-cursors: a cursor from the repositories, so there is always one (Bibata is in the AUR; without an
 # AUR helper it is downloaded from GitHub)
@@ -59,7 +60,7 @@ ARCH_PKGS=("${PKG_DESKTOP[@]}" "${PKG_SHELL[@]}" "${PKG_TOOLS[@]}" "${PKG_FONTS[
 AUR_NEEDED=(quickshell awww matugen niri xwayland-satellite mpvpaper)
 
 # programs the desktop needs at runtime (shown at the end if something is missing)
-NEED_CMDS=(Hyprland hyprlock hypridle waybar qs swaync-client awww matugen cava jq python3 grim slurp wl-copy wf-recorder notify-send)
+NEED_CMDS=(Hyprland hyprlock hypridle waybar qs swaync-client awww matugen cava jq python3 grim slurp wl-copy wf-recorder notify-send tesseract fd)
 
 # niri: the scrollable-tiling window manager. The shell runs on it as on Hyprland (install.sh asks which one:
 # Hyprland, niri or both). xwayland-satellite runs X11 apps there; the GNOME portal gives screen sharing.
@@ -82,7 +83,8 @@ FPKG_DESKTOP=(hyprland hyprlock hypridle hyprsunset hyprpolkitagent xdg-desktop-
 FPKG_SHELL=(quickshell qt6-qtmultimedia waybar SwayNotificationCenter awww cava kitty fish fastfetch nautilus matugen)
 FPKG_TOOLS=(wf-recorder grim slurp wl-clipboard cliphist wtype libnotify xdg-user-dirs jq curl python3 playerctl brightnessctl pamixer
             ImageMagick "ffmpeg-free|ffmpeg" mpvpaper zenity NetworkManager bluez pipewire pipewire-pulseaudio wireplumber
-            btop cmatrix pavucontrol gnome-calendar upower power-profiles-daemon tar xz unzip)
+            btop cmatrix pavucontrol gnome-calendar upower power-profiles-daemon tar xz unzip
+            tesseract tesseract-langpack-eng tesseract-langpack-rus translate-shell fd-find plocate)
 FPKG_FONTS=(rsms-inter-fonts google-noto-sans-fonts google-noto-emoji-fonts)
 FPKG_LOOK=(papirus-icon-theme adw-gtk3-theme adwaita-cursor-theme)
 FEDORA_PKGS=("${FPKG_DESKTOP[@]}" "${FPKG_SHELL[@]}" "${FPKG_TOOLS[@]}" "${FPKG_FONTS[@]}" "${FPKG_LOOK[@]}")

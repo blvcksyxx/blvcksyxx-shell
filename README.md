@@ -21,7 +21,7 @@
   <img src="https://img.shields.io/badge/Quickshell-QML-8B7BFF?style=for-the-badge&labelColor=11111b&logo=qt&logoColor=8B7BFF&color=1a1b26" alt="Quickshell">
 </p>
 <p align="center">
-  <a href="https://github.com/blvcksyxx/blvcksyxx-shell/releases/tag/v1.11.1"><img src="https://img.shields.io/badge/release-v1.11.1-8B7BFF?style=for-the-badge&labelColor=11111b&logo=github&logoColor=white" alt="blvcksyxx shell 1.11.1"></a>
+  <a href="https://github.com/blvcksyxx/blvcksyxx-shell/releases/tag/v2.0.0"><img src="https://img.shields.io/badge/release-v2.0.0-8B7BFF?style=for-the-badge&labelColor=11111b&logo=github&logoColor=white" alt="blvcksyxx shell 2.0.0"></a>
   <a href="https://github.com/blvcksyxx/blvcksyxx-shell/stargazers"><img src="https://img.shields.io/github/stars/blvcksyxx/blvcksyxx-shell?style=for-the-badge&labelColor=11111b&logo=starship&logoColor=f5c542&color=f5c542" alt="Stars"></a>
   <a href="https://github.com/blvcksyxx/blvcksyxx-shell/commits"><img src="https://img.shields.io/github/last-commit/blvcksyxx/blvcksyxx-shell?style=for-the-badge&labelColor=11111b&logo=git&logoColor=white&color=4c566a&label=updated" alt="Last commit"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-2ea043?style=for-the-badge&labelColor=11111b&logo=opensourceinitiative&logoColor=white" alt="MIT license"></a>
@@ -63,9 +63,9 @@ Screenshots of the running shell. More on the [website](https://shell.blvcksyxx.
   <a href="https://shell.blvcksyxx.xyz/#previews"><img src="assets/screenshots/settings-update.webp" alt="blvcksyxx shell Update Center v1.11" width="49%"></a>
 </p>
 
-**v1.11 highlights:** the new screenshot tool, Infinite Desktop with a moving wallpaper, the Material 3 lock screen, clipboard history, the wallpaper carousel, window rules and the shell's own login screen. Full list in the [release notes](docs/releases/v1.11.md).
+**v2.0 highlights:** the Edge bar, the Toolbox (`SUPER + X`), screenshot text / translation / colour picking, the record menu, the key sheet, your own themes with export and import, files in the launcher and live wallpapers on the login screen. Full list in the [release notes](docs/releases/v2.0.0.md).
 
-**v1.11.1** fixes the update from v1.1 that could stop the desktop from loading, and makes the desktop and lock screen recover from old kept files: [release notes](docs/releases/v1.11.1.md).
+**v1.11.1** fixed the update from v1.1 that could stop the desktop from loading: [release notes](docs/releases/v1.11.1.md).
 
 ## Supported systems
 The bar, the welcome window and Settings show **your distro's logo** automatically.
@@ -157,7 +157,7 @@ The installer asks which window manager you want (Hyprland, niri or both), insta
 
 | Area | What you get |
 | --- | --- |
-| **blvcksyxx bar** | the Quickshell bar: style Dynamic (the default: an island in the middle that is your clock and grows into the player, volume, workspaces, notifications, today and recording), Flat, Island, Islands, Pills or Notch, auto-hide, a soft shadow, position top, bottom, left or right (a standing bar), size, transparency, workspaces as dots, Pac-Man or letters, clock with seconds, a switch back to Waybar |
+| **blvcksyxx bar** | the Quickshell bar: style Edge (the default for new installs: each part is one piece with the screen edge, with its own frame, transparency and blur), Dynamic (an island in the middle that is your clock and grows into the player, volume, workspaces, notifications, today and recording), Flat, Island, Islands, Pills or Notch, auto-hide, a soft shadow, position top, bottom, left or right (a standing bar), size, transparency, workspaces as dots, Pac-Man or letters, clock with seconds, a switch back to Waybar |
 | **Bar cards** | Weather, System and Date bar modules; each grows out of its pill into a Material 3 card with the forecast, CPU/RAM/disk/swap or your month, week, tasks and uptime; on a side bar the cards open beside it; Esc or a click outside closes them, and one card closes when another opens |
 | **Task view & switcher** | `SUPER + Tab`: every workspace as a live screen with its windows; type to find a window, arrows pick a workspace, click or drag a window, middle click or the x closes it, Esc leaves. `ALT + Tab`: windows in the order you used them; hold ALT, Tab goes on, Shift + Tab back. On niri too; niri's own switcher is turned off and its overview moves to `SUPER + O` |
 | **Your keybinds** | Settings > Keybinds keeps the shell's keys and your own keybinds (any app or command on keys you pick) on one page; Task view and the switcher can get other keys there with the pencil |
@@ -169,7 +169,7 @@ The installer asks which window manager you want (Hyprland, niri or both), insta
 | **Wallpaper picker** | `SUPER + W`: your wallpapers in a sheet with search, shuffle and keys; colors follow (a black, white or grey wallpaper gives grey colors) |
 | **Wallpapers** | animations when one comes in (Ripple from your pointer, Wave, Wipe, Portal, Fade, Slide, Dissolve), a slideshow, **live wallpapers** (videos, with mpvpaper), your Waypaper folders, space wallpapers in the Material style |
 | **Desktop menu** | right-click the desktop: your wallpapers in a row, quick switches (next wallpaper, night light, Do Not Disturb, gaming mode, lock) and the places you change most in Settings, in Material 3 with frosted glass |
-| **Themes** | a whole look in one click (blvcksyxx, Terminal, Glass, Neon, Ember, Frost), and your colors in VSCodium / VS Code and Discord (Vesktop, Vencord, Equicord, BetterDiscord) |
+| **Themes** | a whole look in one click (blvcksyxx, Terminal, Glass, Neon, Ember, Frost), and your colors in VSCodium / VS Code and Discord (Vesktop, Vencord, Equicord, BetterDiscord). Save the look you have now under a name; your themes live in `~/.config/rice/themes/presets.json`, survive updates and backups, and export / import as plain JSON |
 | **Monitors** | resolution, refresh rate, scale, rotation, arrangement and turning a screen off, on Hyprland and niri |
 | **Bar layout** | five ready-made Material 3 layouts, and drag and drop the modules between left, center and right: launcher, workspaces, window title, music, the island (your clock), tray (right-click an app: its menu and Close app; long menus scroll), volume, Bluetooth, Wi-Fi, battery, notifications, power, a music visualizer; the window title with its app icon on the left or right |
 | **Dock** | bottom, left or right edge, its own app menu with search, pinned favourite apps (also in Settings > Dock), open apps, hover to reveal, media player, tinted icons; windows keep away from it while it stays out |
@@ -184,16 +184,20 @@ The installer asks which window manager you want (Hyprland, niri or both), insta
 | **Updates** | a notification when a new version is out ("New version ready"), the **Update Center** in Settings (Update now, every step live, no terminal), `rice-update` in a terminal. If `git pull` cannot run, your changes are kept on a branch and in a stash and the update still goes through |
 | **Security** | Settings > Security: a virus scan with ClamAV (quick or home folder, quarantine and restore, optional weekly quick scan), a system check (firewall, SSH, open ports, disk encryption, screen lock, reboot after a kernel update, scheduled jobs, autostart) and a watch on the shell's own files; the installer records a baseline after every install and update |
 | **Idle & Lockscreen** | lock, screen-off and sleep timers; the shell's own Material 3 lock screen: your wallpaper (or the screen) blurred, the clock big, stacked, minimal or inside your shape, a greeting with your picture in your shape, chips for weather, battery, notifications, CPU and RAM (wavy rings), the music with a wavy line, the password as shapes, power buttons (Shut down in red), a Preview button; hyprlock is the fallback and still one switch away |
-| **Launcher** | the built-in blvcksyxx Launcher: 5 themes (Onyx, Graphite, Midnight, Rose, Paper), layouts list / grid / full-width bar / split (wallpaper on the left), position top, center or bottom, width, rows, corner radius, transparency, blur, font size, icons |
+| **Launcher** | the built-in blvcksyxx Launcher: 6 themes (Wallpaper, Onyx, Graphite, Midnight, Rose, Paper; Wallpaper is the default for new installs), layouts list / grid / full-width bar / split (wallpaper on the left), position top, center or bottom, width, rows, corner radius, transparency, blur, font size, icons; files and folders in your home appear after three letters (`/` in front: only files), with `fd`, else `locate`, else a short walk, and `.cache` / `node_modules` left out |
 | **Cursors** | Bibata, Hyprcursor themes (Rose Pine) and packs you can download in Settings: Catppuccin, Phinger; live preview |
 | **Appearance** | Colors (every color role of your theme), Fonts (typography: text size, heavier headings, rounded letters, the Material 3 type scale), Components (switch icons, corner shape, slider thickness, wavy progress) |
 | **Motion** | Hyprland animation styles (calm, lively, bouncy, snappy, minimal) and speed, spring and easing graphs, durations, a shape you can throw |
 | **Keyboard** | up to four layouts, the one in use, the keys that switch them, search over every layout |
 | **Game bar** | `SUPER + G`: CPU and GPU with their heat, RAM, ping, screenshot, record, microphone, power mode, gaming mode, Do Not Disturb, volume and brightness over your game; its transparency and blur in Settings > Gaming |
+| **Toolbox** | `SUPER + X`: tasks, a note, a focus timer, a converter (units and money), the system (processor, graphics, memory, disk, network, temperatures) and a local AI chat on a sheet at the screen edge; its own Settings page, transparency, blur and an optional island, and it remembers the tab you used last. The chat talks only to Ollama on this computer (`http://localhost:11434`); there is no cloud provider and no API keys in the UI |
+| **Screenshot extras** | in the screenshot tool, `T` reads the text in the region with `tesseract` and copies it, `L` translates it (with `translate-shell`; Google's endpoint only when you press Translate), `G` searches with the picture, and the Color mode copies the colour of the pixel you click; the result card keeps the text or colour on the clipboard |
+| **Record menu** | `SUPER + SHIFT + R`: region, window or screen, computer sound and microphone, with a fallback that records without sound; `wf-recorder` (and `ffmpeg` for thumbnails) from the installer |
+| **Key sheet** | `SUPER + /`: every shell key in groups, with the keys you changed in Settings > Keybinds |
 | **Welcome intro** | once after installing: night falls over the desktop, a few words, the crescent-moon logo draws itself in, "Take a look" opens it up again and Settings starts a short tour (it lights up one part at a time). Play it again with `rice-welcome show`, only the tour: `rice-welcome tour` |
 | **Performance & gaming** | one switch turns off all blur and transparency (Hyprland, kitty, bar, launcher, notifications, dock, widgets); Gaming mode with options to keep blur, animations, shadows or gaps, Do Not Disturb (Settings > Services) |
 | **Your settings everywhere** | `settings/` holds saved Settings choices (bar, widgets, lock screen, fonts...), `./install.sh` puts them on your other computers (files you changed there are kept) |
-| **Languages** | Settings in 20 languages (English, Polish, Portuguese, Spanish, French, German, Italian, Dutch, Russian, Ukrainian, Turkish, Czech, Swedish, Romanian, Hungarian, Japanese, Korean, Chinese, Indonesian, Vietnamese); the desktop in English and Polish |
+| **Languages** | Settings in 20 languages (English, Polish, Portuguese, Spanish, French, German, Italian, Dutch, Russian, Ukrainian, Turkish, Czech, Swedish, Romanian, Hungarian, Japanese, Korean, Chinese, Indonesian, Vietnamese); the desktop in many of them. The new v2.0 pages are complete in English and Russian; a missing line falls back to English instead of showing an empty label |
 | **Installer** | interactive (Install, Update, Choose, Restore), backs up everything, supports Arch, CachyOS, Fedora and NixOS, warns when Hyprland is too old, checks the platform before touching anything; a wallpaper is put on right after installing |
 
 ## Keybinds
@@ -227,14 +231,16 @@ The installer asks which window manager you want (Hyprland, niri or both), insta
 | `SUPER + F12` / `F11` / `F10` | volume up / down / mute (with on-screen display) |
 | media keys | play/pause, next, previous |
 | `Fn` volume / brightness keys, headset `+` `-` | volume, mute, microphone, brightness |
-| `Print` / `SHIFT + Print` | screenshot of a region / the whole screen |
-| `SUPER + SHIFT + R` | record a region (press again to stop) |
+| `Print` / `SHIFT + Print` | screenshot tool: region / the whole screen, with text, translation, picture search and colour picking |
+| `SUPER + SHIFT + R` | record menu: region, window or screen, sound and microphone (press again to stop) |
 | `SUPER + A` | control center (quick switches) |
 | `SUPER + G` | game bar |
 | `SUPER + N` | control center (notifications) |
 | `SUPER + ALT + W` | edit desktop widgets (add, move, resize, style) |
 | `SUPER + ALT + D` | today & system card from the bar's island |
 | `SUPER + W` | wallpaper picker |
+| `SUPER + X` | Toolbox (tasks, note, timer, converter, system, local chat) |
+| `SUPER + /` | key sheet (every shell key in groups) |
 
 ## Layout
 | Path | Contents |
@@ -262,7 +268,7 @@ To release a new version, put the new number in `VERSION` (for example `1.2`) an
 
 ## Versioning
 
-blvcksyxx shell follows a `1.x` release series; `VERSION` is the source of truth. The
+blvcksyxx shell follows a `2.x` release series; `VERSION` is the source of truth. The
 changelog lists every release.
 
 ## License

@@ -8,6 +8,10 @@ Equicord, BetterDiscord), every time the colors change (a new wallpaper, another
   rice-theme list              the themes (JSON)
   rice-theme state             the theme you have and the apps it colors (JSON)
   rice-theme apply KEY         use a theme
+  rice-theme save NAME         your own theme: how the desktop looks right now, kept under a name
+  rice-theme delete KEY        take one of your own themes away again
+  rice-theme export [FILE]     write your own themes as JSON (to FILE, or to standard output)
+  rice-theme import FILE       take themes from a JSON file made by export (yours with the same key are replaced)
   rice-theme app vscode|discord on|off
   rice-theme sync              color the apps again from your colors now (matugen calls it)
 """
@@ -70,6 +74,187 @@ THEMES = {
         "preview": ["#101518", "#8fa8b8", "#e2eaf0"]},
 }
 ORDER = ["blvcksyxx", "terminal", "glass", "neon", "ember", "frost"]
+THEMES_DIR = DIR + "/themes"
+PRESETS = THEMES_DIR + "/presets.json"
+OLD_PRESETS = DIR + "/presets.json"
+
+
+def jread(path):
+    try:
+        return json.load(open(path))
+    except Exception:
+        return {}
+
+
+def presets_j():
+    """your themes; the old ~/.config/rice/presets.json is taken over once, and kept as it was"""
+    if not os.path.exists(PRESETS) and os.path.isfile(OLD_PRESETS):
+        try:
+            os.makedirs(THEMES_DIR, exist_ok=True)
+            shutil.copy2(OLD_PRESETS, PRESETS)
+        except OSError:
+            pass
+    return jread(PRESETS)
+
+
+def write_presets(j):
+    os.makedirs(THEMES_DIR, exist_ok=True)
+    tmp = PRESETS + ".tmp"
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w") as f:
+        json.dump(j, f, indent=1)
+    os.replace(tmp, PRESETS)
+
+
+# ---------------- your own themes ----------------
+def user_themes():
+    """your saved themes, checked: a broken entry is left out (key "user-...")"""
+    out = {}
+    for k, t in (presets_j().get("themes") or {}).items():
+        if not (isinstance(k, str) and k.startswith("user-") and isinstance(t, dict)):
+            continue
+        base = dict(THEMES["blvcksyxx"])
+        base.update({x: t[x] for x in base if x in t and type(t[x]) in (type(base[x]), int, float)})
+        base["name"] = str(t.get("name", k[5:]))[:40]
+        base["desc"] = str(t.get("desc", ""))[:120]
+        base["user"] = True
+        if isinstance(t.get("wallpaper"), str):
+            base["wallpaper"] = t["wallpaper"]
+        out[k] = base
+    return out
+
+
+def all_themes():
+    t = dict(THEMES)
+    t.update(user_themes())
+    return t
+
+
+def capture(name):
+    """the theme of how things look right now"""
+    p = jread(APPPREFS)
+    bar = jread(DIR + "/bar.json")
+    nt = jread(DIR + "/notify.json")
+    dk = jread(DIR + "/desktop.json")
+    hy = {}
+    try:
+        r = subprocess.run([BIN + "hypr-set", "state"], capture_output=True, text=True, timeout=10)
+        hy = (json.loads(r.stdout) or {}).get("opts", {})
+    except Exception:
+        pass
+    try:
+        mode = open(DIR + "/color-mode").read().strip() or "auto"
+    except OSError:
+        mode = "auto"
+    try:
+        font = (jread(DIR + "/fonts.json").get("main") or UI_FONT)
+    except Exception:
+        font = UI_FONT
+    try:
+        wall = open(HOME + "/.cache/rice/wallpaper-current").read().strip()
+    except OSError:
+        wall = ""
+    d = THEMES["blvcksyxx"]
+    pal = palette()
+
+    def num(v, dflt):
+        try:
+            return float(v)
+        except (TypeError, ValueError):
+            return dflt
+    t = {
+        "name": name, "desc": "Your own theme",
+        "colors": mode, "corners": num(p.get("cornerScale"), d["corners"]), "shape": p.get("accentShape") or d["shape"],
+        "wavy": p.get("wavy", d["wavy"]) is not False, "motion": p.get("motion") or d["motion"],
+        "bounce": num(p.get("bounce"), d["bounce"]),
+        "bar": bar.get("style") or d["bar"], "bar_opacity": num(bar.get("opacity"), d["bar_opacity"]),
+        "widgets": dk.get("widgetTheme") or d["widgets"], "notify": nt.get("style") or d["notify"],
+        "notify_radius": int(num(nt.get("radius"), d["notify_radius"])),
+        "rounding": int(num(hy.get("decoration.rounding"), d["rounding"])), "gaps_in": int(num(hy.get("general.gaps_in"), d["gaps_in"])),
+        "gaps_out": int(num(hy.get("general.gaps_out"), d["gaps_out"])), "border": int(num(hy.get("general.border_size"), d["border"])),
+        "font": font,
+        "preview": [pal.get("surface", "#101014"), pal.get("primary", "#c9b68a"), pal.get("on_surface", "#e8e4dc")],
+    }
+    if wall and os.path.isfile(wall):
+        t["wallpaper"] = wall
+    return t
+
+
+def save_user(name):
+    name = name.strip()[:40]
+    if not name:
+        sys.exit("rice-theme save NAME")
+    key = "user-" + (re.sub(r"[^\w]+", "-", name.lower()).strip("-_") or "theme")
+    j = presets_j()
+    th = j.get("themes") if isinstance(j.get("themes"), dict) else {}
+    th[key] = capture(name)
+    j["themes"] = th
+    write_presets(j)
+    c = load()
+    c["theme"] = key
+    save(c)
+    print(key)
+
+
+def delete_user(key):
+    j = presets_j()
+    th = j.get("themes") if isinstance(j.get("themes"), dict) else {}
+    if key in th:
+        th.pop(key)
+        j["themes"] = th
+        write_presets(j)
+        c = load()
+        if c["theme"] == key:
+            c["theme"] = "blvcksyxx"
+            save(c)
+
+
+def export_themes(path=""):
+    """your own themes as JSON (the same shape the file uses inside)"""
+    th = {k: t for k, t in (presets_j().get("themes") or {}).items()
+          if isinstance(k, str) and k.startswith("user-") and isinstance(t, dict)}
+    body = json.dumps({"version": 1, "themes": th}, ensure_ascii=False, indent=1) + "\n"
+    if not path:
+        sys.stdout.write(body)
+        return
+    path = os.path.expanduser(path)
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        f.write(body)
+    os.replace(tmp, path)
+
+
+def import_themes(path):
+    """take themes from a file made by export; a broken entry is skipped, never a whole import"""
+    try:
+        j = json.load(open(os.path.expanduser(path), encoding="utf-8"))
+    except Exception as e:
+        sys.exit("rice-theme: could not read %s (%s)" % (path, type(e).__name__))
+    them = j.get("themes") if isinstance(j, dict) and isinstance(j.get("themes"), dict) else j
+    if not isinstance(them, dict):
+        sys.exit("rice-theme: no themes in that file")
+    p = presets_j()
+    have = p.get("themes") if isinstance(p.get("themes"), dict) else {}
+    base = dict(THEMES["blvcksyxx"])
+    n = 0
+    for k, t in them.items():
+        if not isinstance(k, str) or not isinstance(t, dict):
+            continue
+        key = k if k.startswith("user-") else "user-" + (re.sub(r"[^\w]+", "-", k.lower()).strip("-_") or "theme")
+        clean = {}
+        for x in base:
+            if x in t and type(t[x]) in (type(base[x]), int, float):
+                clean[x] = t[x]
+        if "wallpaper" in t and isinstance(t["wallpaper"], str):
+            clean["wallpaper"] = t["wallpaper"]
+        clean["name"] = str(t.get("name", key[5:]))[:40] or key[5:]
+        clean["desc"] = str(t.get("desc", ""))[:120]
+        clean["preview"] = [x for x in (t.get("preview") or []) if isinstance(x, str)][:3] or base["preview"]
+        have[key] = clean
+        n += 1
+    p["themes"] = have
+    write_presets(p)
+    print(n)
 
 
 def load():
@@ -383,7 +568,7 @@ def set_prefs(kv):
 
 
 def apply(key):
-    t = THEMES[key]
+    t = all_themes()[key]
     c = load()
     c["theme"] = key
     save(c)
@@ -417,6 +602,17 @@ def apply(key):
         c.pop("font_was")
     save(c)
     # the colors last: the wallpaper's colors are made again, and the apps follow (sync)
+    # your own theme: its wallpaper too (that makes the colors as well)
+    w = t.get("wallpaper", "")
+    if t.get("user") and w and os.path.isfile(w):
+        # the color mode first without making colors (the wallpaper below makes them, once)
+        try:
+            open(DIR + "/color-mode", "w").write(t["colors"] + "\n")
+        except OSError:
+            pass
+        tool("rice-walls", "set", w, t=180)
+        sync()
+        return
     tool("rice-colors", "mode", t["colors"], t=180)
     sync()
 
@@ -446,12 +642,21 @@ def main(a):
     cmd = a[1] if len(a) > 1 else ""
     arg = a[2] if len(a) > 2 else ""
     if cmd == "list":
+        u = user_themes()
         print(json.dumps({"current": load()["theme"],
-                          "themes": [dict(THEMES[k], key=k) for k in ORDER]}))
+                          "themes": [dict(THEMES[k], key=k) for k in ORDER] + [dict(u[k], key=k) for k in sorted(u)]}))
     elif cmd == "state":
         state()
-    elif cmd == "apply" and arg in THEMES:
+    elif cmd == "apply" and arg in all_themes():
         apply(arg)
+    elif cmd == "save" and arg:
+        save_user(" ".join(a[2:]))
+    elif cmd == "delete" and arg.startswith("user-"):
+        delete_user(arg)
+    elif cmd == "export":
+        export_themes(arg)
+    elif cmd == "import" and arg:
+        import_themes(arg)
     elif cmd == "app" and arg in ("vscode", "discord") and len(a) > 3 and a[3] in ("on", "off"):
         c = load()
         c["apps"][arg] = a[3] == "on"

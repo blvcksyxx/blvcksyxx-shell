@@ -63,8 +63,11 @@ in
         "quickshell" "matugen" "imagemagick" "kitty" "fish" "fastfetch"
         "cava" "curl" "jq" "python3" "playerctl" "brightnessctl" "pamixer" "zenity"
         "wf-recorder" "grim" "slurp" "wl-clipboard" "libnotify" "xdg-user-dirs"
+        "translate-shell" "fd" "plocate"
         "pavucontrol" "gnome-calendar" "upower" "nautilus" "btop" "peaclock"
         "papirus-icon-theme" "bibata-cursors"
+      ] ++ lib.optionals (pkgs ? tesseract) [
+        (pkgs.tesseract.override { enableLanguages = [ "eng" "rus" ]; })
       ] ++ lib.optionals cfg.extras (have [ "ffmpeg" "mpvpaper" ]);
 
       fonts.packages = have [ "nerd-fonts.jetbrains-mono" "nerd-fonts.symbols-only" "inter" "rubik" ];

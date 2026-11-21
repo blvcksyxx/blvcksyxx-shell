@@ -151,6 +151,28 @@ Do this only after the repository is committed, so the old state can be recovere
 - The saved choices arrived: Russian locale (`settings/rice/region.json`), Navy color
   mode, custom control center layout, custom bar and widget setup.
 - No sound-hardware helper is installed and no PulseAudio configuration is copied.
+- A fresh install gets the **Edge** bar (Settings > Bar) and the **Wallpaper** launcher
+  look; a machine that already chose another style or theme keeps it.
+- `SUPER + X` opens the Toolbox; tasks, note, timer, converter, system and chat work, the
+  last tab is remembered, and `Ctrl + 1 ... 6` / `Ctrl + Tab` / `Esc` behave.
+- The Toolbox chat is local only: with Ollama stopped it says so, and there is no cloud
+  provider, URL other than loopback, or API-key field.
+- Screenshot tool: `T` reads text with `tesseract` (Russian text too; Polish needs `tesseract-data-pol`), `L`
+  translates it (with `translate-shell` installed; Google only after pressing Translate),
+  `G` searches with the picture, and the Color mode copies a pixel's colour.
+- `SUPER + SHIFT + R` opens the record menu; region, window and screen record, computer
+  sound and microphone are on by default and can be toggled, and recording still starts
+  without sound when the audio device is unavailable. With `wf-recorder` the computer's
+  sound is recorded; `gpu-screen-recorder` can take both.
+- `SUPER + /` opens the key sheet; changed keys from Settings > Keybinds appear there.
+- Settings > Appearance > Themes: Save adds a theme, Export writes JSON, Import reads it
+  back in a second home, and deleting the active theme falls back to blvcksyxx.
+- The launcher shows files from the home after three letters, leaves out `.cache` and
+  `node_modules`, and `/` in front shows only files.
+- On a machine with a live wallpaper, the SDDM login screen plays the video when
+  QtMultimedia is available and shows a still frame otherwise.
+- Settings in Russian: the new Toolbox, Themes, Edge bar and key-sheet lines are Russian;
+  an untranslated line falls back to English instead of an empty label.
 
 Commands:
 
@@ -192,12 +214,14 @@ by `blvcksyxx <blvcksyxx@users.noreply.github.com>`.
 Update `VERSION` and the notes in `docs/releases/`, commit, then tag that commit:
 
 ```bash
-git tag -a v1.11.1 -m 'blvcksyxx shell 1.11.1'
-git push origin main v1.11.1
+git tag -a v2.0.0 -m 'blvcksyxx shell 2.0.0'
+git push origin main v2.0.0
 ```
 
-Create the GitHub release from the notes file (`gh release create v1.11.1 --title 'v1.11.1'
---notes-file docs/releases/v1.11.1.md`) or with **Releases → Draft a new release**. Upload
+Create the GitHub release from the notes file (`gh release create v2.0.0 --title 'v2.0.0'
+--notes-file docs/releases/v2.0.0.md`) or with **Releases → Draft a new release**. The
+release workflow uploads the signed assets and `SHA256SUMS`; check that every asset is
+present before announcing. Upload
 `assets/social-preview.png` as the repository social preview in **Settings → General →
 Social preview**. Then test the updater:
 

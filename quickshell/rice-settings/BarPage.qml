@@ -84,7 +84,7 @@ Item {
                     GradientStop { position: 0; color: M3.stageTop }
                     GradientStop { position: 1; color: M3.stageBottom }
                 }
-                readonly property string sty: page.v("style", "islands")
+                readonly property string sty: page.v("style", "edge")
                 readonly property bool atTop: page.v("position", "top") === "top"
                 readonly property real alpha: page.v("opacity", 0.72)
                 readonly property real h: 30 + (page.v("height", 38) - 38) * 0.5
@@ -139,15 +139,29 @@ Item {
                         border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.1)
                     }
                     readonly property real edge: prev.sty === "island" ? 14 : (prev.sty === "flat" ? 12 : 0)
-                    PZone { x: pbar.edge; mods: page.lay.left || []; soft: prev.sty === "islands" || prev.sty === "notch" || prev.sty === "dynamic" }
+                    // edge: each part hangs from the screen edge (the left and right parts reach the sides)
+                    Repeater {
+                        model: prev.sty === "edge" ? [pl0, pc0, pr0] : []
+                        delegate: Rectangle {
+                            required property var modelData
+                            required property int index
+                            visible: modelData.visible
+                            x: index === 0 ? -12 : modelData.x - 8
+                            width: index === 0 ? modelData.x + modelData.width + 20 : (index === 2 ? pbar.width - modelData.x + 20 : modelData.width + 16)
+                            y: prev.atTop ? -10 : -4; height: prev.h + 14
+                            radius: 12
+                            color: Qt.darker(prev.pill, 1.4)
+                        }
+                    }
+                    PZone { id: pl0; x: pbar.edge; mods: page.lay.left || []; soft: prev.sty === "islands" || prev.sty === "notch" || prev.sty === "dynamic" || prev.sty === "edge" }
                     // notch: the middle grows out of the screen edge
-                    PZone { x: (pbar.width - width) / 2; mods: page.lay.center || []; soft: prev.sty === "islands" || prev.sty === "notch" || prev.sty === "dynamic"
+                    PZone { id: pc0; x: (pbar.width - width) / 2; mods: page.lay.center || []; soft: prev.sty === "islands" || prev.sty === "notch" || prev.sty === "dynamic" || prev.sty === "edge"
                         readonly property bool notch: prev.sty === "notch"
                         y: notch ? (prev.atTop ? -10 : 0) : 0
                         height: notch ? prev.h + 10 : prev.h
                         width: implicitWidth + (notch ? 30 : 0)
                         radius: notch ? 14 : height / 2 }
-                    PZone { x: pbar.width - width - pbar.edge; mods: page.lay.right || []; soft: prev.sty === "islands" || prev.sty === "notch" || prev.sty === "dynamic" }
+                    PZone { id: pr0; x: pbar.width - width - pbar.edge; mods: page.lay.right || []; soft: prev.sty === "islands" || prev.sty === "notch" || prev.sty === "dynamic" || prev.sty === "edge" }
                 }
                 T { text: I18n.t("Preview"); font.pixelSize: 10; color: M3.inkDim; anchors.right: parent.right; anchors.rightMargin: 12; anchors.bottom: parent.bottom; anchors.bottomMargin: 8 }
             }
@@ -170,9 +184,9 @@ Item {
             T { kind: "title"; text: I18n.t("Style"); font.pixelSize: 16; font.bold: true; topPadding: 10 }
             SegRow {
                 label: I18n.t("Bar style")
-                desc: I18n.t("Dynamic: tonal pills in your theme color and an island in the middle that grows")
-                options: [ { label: I18n.t("Flat"), value: "flat" }, { label: I18n.t("Island"), value: "island" }, { label: I18n.t("Islands"), value: "islands" }, { label: I18n.t("Pills"), value: "pills" }, { label: I18n.t("Notch"), value: "notch" }, { label: I18n.t("Dynamic"), value: "dynamic" } ]
-                current: page.v("style", "islands") === "google" ? "dynamic" : page.v("style", "islands")
+                desc: prev.sty === "edge" ? I18n.t("Edge: like Dynamic, but every part of the bar is one piece with the screen edge") : I18n.t("Dynamic: tonal pills in your theme color and an island in the middle that grows")
+                options: [ { label: I18n.t("Flat"), value: "flat" }, { label: I18n.t("Island"), value: "island" }, { label: I18n.t("Islands"), value: "islands" }, { label: I18n.t("Pills"), value: "pills" }, { label: I18n.t("Notch"), value: "notch" }, { label: I18n.t("Dynamic"), value: "dynamic" } , { label: I18n.t("Edge"), value: "edge" }]
+                current: page.v("style", "edge") === "google" ? "dynamic" : page.v("style", "edge")
                 onChosen: function(x) { page.setv("style", x) }
             }
             // the island has a page of its own now
@@ -187,6 +201,13 @@ Item {
                 }
                 T { kind: "icon"; anchors.right: parent.right; anchors.rightMargin: 18; anchors.verticalCenter: parent.verticalCenter; text: ""; color: M3.inkDim }
                 MouseArea { id: ilm; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: page.ctl.page = 6 }
+            }
+            ToggleRow {
+                visible: page.v("style", "edge") === "edge"
+                label: I18n.t("Frame along the edge")
+                desc: I18n.t("Edge style: the dark parts that join the bar to the screen edge. Off: only the pills stay")
+                checked: page.v("edge_frame", true) !== false
+                onToggled: function(x) { page.setv("edge_frame", x ? "on" : "off") }
             }
             ToggleRow {
                 label: I18n.t("Auto-hide")

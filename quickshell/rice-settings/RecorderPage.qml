@@ -49,7 +49,7 @@ Item {
     readonly property bool recording: info.recording === true
     readonly property real elapsed: recording ? Math.max(0, tick - info.start) : 0
     readonly property string soundText: {
-        const s = v("rec_sound", true) === true, m = v("rec_mic", false) === true
+        const s = v("rec_sound", true) === true, m = v("rec_mic", true) === true
         return s && m ? "Computer + microphone" : s ? "Computer sound" : m ? "Microphone" : "No sound"
     }
     readonly property bool noTool: info.tools && info.tools["wf-recorder"] === false && info.tools["gpu-screen-recorder"] === false
@@ -200,7 +200,7 @@ Item {
         // ---------- sound ----------
         SectionTitle { text: I18n.t("Sound") }
         ToggleRow { label: I18n.t("Record sound"); desc: I18n.t("The sound of your computer: games, videos, calls"); checked: page.v("rec_sound", true) === true; onToggled: function(x) { page.setv("rec_sound", x ? "on" : "off") } }
-        ToggleRow { label: I18n.t("Record microphone"); desc: I18n.t("Your voice instead (with wf-recorder only one of the two; gpu-screen-recorder can take both)"); checked: page.v("rec_mic", false) === true; onToggled: function(x) { page.setv("rec_mic", x ? "on" : "off") } }
+        ToggleRow { label: I18n.t("Record microphone"); desc: I18n.t("Your voice instead (with wf-recorder only one of the two; gpu-screen-recorder can take both)"); checked: page.v("rec_mic", true) === true; onToggled: function(x) { page.setv("rec_mic", x ? "on" : "off") } }
 
         T {
             visible: page.noTool

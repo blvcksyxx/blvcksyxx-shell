@@ -3,6 +3,49 @@
 All notable changes to blvcksyxx shell are listed here. The current version is in
 `VERSION`.
 
+## V2.0.0
+
+- The whole upstream DarkShadowShell V4.77–V4.83 update is in: the Edge bar, the Toolbox,
+  screenshot text / translation / colour picking, the record menu, the key sheet, your own
+  themes, files in the launcher and live wallpapers on the login screen. The blvcksyxx
+  branding, the bottom-right control-centre corner and the fast launcher stay
+- Edge bar: a new bar style in Settings > Bar, the default for new installs. Every part is
+  one piece with the screen edge, with its own Transparency and blur; "Frame along the edge"
+  keeps only the pills. The parts follow the zones and the island in the same frame
+- Toolbox on `SUPER + X`: tasks, a note, a focus timer, a converter (units and money), the
+  system (processor, graphics, memory, disk, network, temperatures) and a local AI chat.
+  It opens like the control centre, has its own Settings page, transparency, blur and an
+  optional island, and remembers the tab you used last
+- Screenshots: read the text in a region (tesseract), translate it (translate-shell, else
+  Google's endpoint only when you press Translate), search with the picture, or pick the
+  colour of a pixel. The result card keeps the text or colour on the clipboard
+- Record menu on `SUPER + SHIFT + R`: region, window or screen, computer sound and
+  microphone (both on by default), with a fallback that records without sound;
+  `wf-recorder` and `ffmpeg` come from the installer
+- Key sheet on `SUPER + /`: every shell key in groups, with the keys you changed in
+  Settings > Keybinds
+- Your own themes: Settings > Appearance > Themes saves the current colours, wallpaper,
+  corners, shapes, bar, widgets, notifications, windows, motion and font under a name;
+  they live in `~/.config/rice/themes` (`presets.json`), survive updates and are included
+  in backups. Export and import are plain JSON
+- Launcher: files and folders in your home appear after three letters (`/` in front shows
+  only files), using `fd`, else `locate`, else a short walk; `.cache` and `node_modules`
+  are left out. The new Wallpaper look tints the launcher with your wallpaper's colours
+  and is the default for new installs
+- Live wallpapers on the SDDM login screen: the video plays there when SDDM's Qt has
+  QtMultimedia, and one frame of that video is the picture; without it the picture stays
+- Settings: new Toolbox page, Edge bar controls, frame along the edge, and the custom-theme
+  controls; the bar and launcher previews follow the new defaults
+- AI chat is local-only: Ollama at `http://localhost:11434` by default, no cloud or
+  OpenAI-compatible provider, no keys in the UI; `~/.config/rice/ai.json` stays mode 0600
+- Installer: `tesseract` with English and Russian language packs,
+  `translate-shell`, `fd` and `plocate` are added for the new tools on Arch and Fedora;
+  `wf-recorder` and `ffmpeg` were already there, and NixOS gets the same packages
+- Russian and English are complete for the new screens; other languages fall back to
+  English instead of showing empty labels
+- Nothing is reset: settings, wallpapers and your own edits stay; the old Onyx launcher
+  default becomes the Wallpaper look once, unless you chose Onyx yourself
+
 ## V1.11.1
 
 - Fixed an update from V1.1 that could stop the desktop from loading: the installer no longer
