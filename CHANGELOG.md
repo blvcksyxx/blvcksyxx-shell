@@ -3,6 +3,16 @@
 All notable changes to blvcksyxx shell are listed here. The current version is in
 `VERSION`.
 
+## V2.0.1
+
+- Update Center and `rice-update check` read the version correctly now: 2.0.0 is shown
+  as V2.0.0 instead of V2.01, and patch releases (2.0.1, 2.0.2 ...) are seen as newer
+- Every part of a version is compared as a number: `2.0.0` equals `2.0`, `2.0.1` is
+  older than `2.1`, and `2.10` is newer than `2.1`; a pre-release suffix is ignored
+- A computer without a `VERSION` file is treated as older than every release instead of a
+  made-up 2.01, so it is offered the update
+- Nothing else changes: settings, themes, wallpapers, the bar and your edits stay
+
 ## V2.0.0
 
 - The whole upstream DarkShadowShell V4.77–V4.83 update is in: the Edge bar, the Toolbox,

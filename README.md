@@ -21,7 +21,7 @@
   <img src="https://img.shields.io/badge/Quickshell-QML-8B7BFF?style=for-the-badge&labelColor=11111b&logo=qt&logoColor=8B7BFF&color=1a1b26" alt="Quickshell">
 </p>
 <p align="center">
-  <a href="https://github.com/blvcksyxx/blvcksyxx-shell/releases/tag/v2.0.0"><img src="https://img.shields.io/badge/release-v2.0.0-8B7BFF?style=for-the-badge&labelColor=11111b&logo=github&logoColor=white" alt="blvcksyxx shell 2.0.0"></a>
+  <a href="https://github.com/blvcksyxx/blvcksyxx-shell/releases/tag/v2.0.1"><img src="https://img.shields.io/badge/release-v2.0.1-8B7BFF?style=for-the-badge&labelColor=11111b&logo=github&logoColor=white" alt="blvcksyxx shell 2.0.1"></a>
   <a href="https://github.com/blvcksyxx/blvcksyxx-shell/stargazers"><img src="https://img.shields.io/github/stars/blvcksyxx/blvcksyxx-shell?style=for-the-badge&labelColor=11111b&logo=starship&logoColor=f5c542&color=f5c542" alt="Stars"></a>
   <a href="https://github.com/blvcksyxx/blvcksyxx-shell/commits"><img src="https://img.shields.io/github/last-commit/blvcksyxx/blvcksyxx-shell?style=for-the-badge&labelColor=11111b&logo=git&logoColor=white&color=4c566a&label=updated" alt="Last commit"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-2ea043?style=for-the-badge&labelColor=11111b&logo=opensourceinitiative&logoColor=white" alt="MIT license"></a>
@@ -60,8 +60,10 @@ Screenshots of the running shell. More on the [website](https://shell.blvcksyxx.
 </p>
 <p align="center">
   <a href="https://shell.blvcksyxx.xyz/#previews"><img src="assets/screenshots/settings-notifications.webp" alt="blvcksyxx shell notifications" width="49%"></a>
-  <a href="https://shell.blvcksyxx.xyz/#previews"><img src="assets/screenshots/settings-update.webp" alt="blvcksyxx shell Update Center v1.11" width="49%"></a>
+  <a href="https://shell.blvcksyxx.xyz/#previews"><img src="assets/screenshots/settings-update.webp" alt="blvcksyxx shell Update Center" width="49%"></a>
 </p>
+
+**v2.0.1** fixes the version Update Center and `rice-update check` show: 2.0.0 was read as V2.01, and patch releases were compared as decimals. [release notes](docs/releases/v2.0.1.md).
 
 **v2.0 highlights:** the Edge bar, the Toolbox (`SUPER + X`), screenshot text / translation / colour picking, the record menu, the key sheet, your own themes with export and import, files in the launcher and live wallpapers on the login screen. Full list in the [release notes](docs/releases/v2.0.0.md).
 

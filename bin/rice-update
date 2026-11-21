@@ -102,24 +102,25 @@ def make_git(r):
 
 
 def key(v):
-    """'2.02' < '2.1' == '2.10' < '3.0' (the part after the dot reads like decimals)"""
-    try:
-        major, _, minor = v.strip().lstrip("vV").partition(".")
-        return (int(major), float("0." + (minor or "0")))
-    except ValueError:
-        return (0, 0.0)
+    """'1.1' < '1.11' < '1.11.1' < '2.0' == '2.0.0' < '2.0.1' < '2.1' < '3.0'
+    (every part is a number, so a patch release is never read as a decimal)"""
+    m = re.match(r"^[vV]?(\d+(?:\.\d+)*)", (v or "").strip())
+    if not m:
+        return (0, 0, 0)
+    nums = [int(p) for p in m.group(1).split(".")[:3]]
+    return tuple(nums + [0] * (3 - len(nums)))
 
 
 def clean(v):
     v = (v or "").strip().lstrip("vV")
-    return v if v and key(v) > (0, 0.0) else ""
+    return v if v and key(v) > (0, 0, 0) else ""
 
 
 def installed():
     try:
-        return clean(open(INSTALLED).read()) or "2.01"
+        return clean(open(INSTALLED).read()) or "0.0.0"
     except OSError:
-        return "2.01"   # installs from before versions existed
+        return "0.0.0"   # no VERSION file: older than every release, so an update is offered
 
 
 def git(r, *a, timeout=25):
