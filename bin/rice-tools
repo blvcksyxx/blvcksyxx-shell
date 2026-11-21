@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """rice-tools: the toolbox of blvcksyxx shell (SUPER + X): tasks, a note, a focus timer, a converter, the system
-at a glance and a chat with a local AI model. This is the part of it that needs a program.
+at a glance, a chat with a local AI model, your games and automatic text work. This is the part of it that
+needs a program.
 
-  rice-tools open | toggle | close [TAB]   show the toolbox (TAB: tasks|note|timer|convert|system|chat)
+  rice-tools open | toggle | close [TAB]   show the toolbox (TAB: tasks|note|timer|convert|system|chat|games|auto)
   rice-tools state                         JSON: where the toolbox is and how it behaves (Settings > Desktop > Toolbox)
   rice-tools set side left|right | width 360..560 | dim on|off | outside on|off | remember on|off
                  | opacity 0.3..1 (how solid the sheet is) | blur on|off (only the sheet is blurred, not the screen behind it)
@@ -14,8 +15,14 @@ at a glance and a chat with a local AI model. This is the part of it that needs 
   rice-tools ai state                      JSON: the chat's settings and the models Ollama has
   rice-tools ai set url URL | model NAME
   rice-tools ai ask                        one line of JSON on standard input: {"messages": [{"role", "content"}, ...]}
-                                           the answer comes as lines of JSON: {"t": "text"} ..., {"done": true}
-                                           or {"err": "what went wrong"}
+                                           add "rag": true to answer from your indexed notes; sources come first
+                                           as {"sources": [{"name", "src"}]}, then {"t": "text"} ..., {"done": true}
+  rice-tools ai auto summarize|translate-en|translate-ru|extract|tasks
+                                           read text on standard input, answer as lines of JSON (like ask)
+  rice-tools ai ocr IMAGE                  text from a picture (tesseract, English and Russian)
+  rice-tools ai index [PATH ...]           (re)build the local index from your notes and documents
+  rice-tools ai docs | forget             what is indexed, or forget it
+  rice-tools ai set rag on|off             answer from the indexed files (Toolbox > Chat > Files)
 
 The chat talks only to Ollama on this computer (http://localhost:11434 by default). There is no cloud or
 OpenAI-compatible provider: nothing you write leaves the machine. The settings are kept in
@@ -23,6 +30,9 @@ OpenAI-compatible provider: nothing you write leaves the machine. The settings a
 """
 import json
 import os
+import re
+import shutil
+import subprocess
 import sys
 import time
 import urllib.error
@@ -34,8 +44,8 @@ DIR = HOME + "/.config/rice"
 CACHE = HOME + "/.cache/rice"
 AI = DIR + "/ai.json"
 RATES = CACHE + "/rates.json"
-TABS = TABS_ALL = ("tasks", "note", "timer", "convert", "system", "chat")
-AI_DEFAULTS = {"provider": "ollama", "url": "http://localhost:11434", "model": ""}
+TABS = TABS_ALL = ("tasks", "note", "timer", "convert", "system", "chat", "games", "auto")
+AI_DEFAULTS = {"provider": "ollama", "url": "http://localhost:11434", "model": "", "rag": True}
 
 
 CONF = DIR + "/tools.json"
@@ -66,6 +76,9 @@ def conf_load():
         pass
     if isinstance(j.get("tabs"), list):
         t = [x for x in dict.fromkeys(j["tabs"]) if x in TABS_ALL]
+        # a config from before 2.1 lists the six old tabs in their old order: the two new ones join them
+        if t == ["tasks", "note", "timer", "convert", "system", "chat"]:
+            t += ["games", "auto"]
         if t:
             c["tabs"] = t
     if j.get("tab") in c["tabs"]:
@@ -190,6 +203,8 @@ def ai_load():
         cloud = j.get("provider") not in (None, "ollama") or (j.get("url") and not local_url(j.get("url")))
         if isinstance(j.get("model"), str) and not cloud:
             c["model"] = j["model"]
+        if isinstance(j.get("rag"), bool):
+            c["rag"] = j["rag"]
         if local_url(j.get("url")):
             c["url"] = j["url"].rstrip("/")
         if j.get("key") or cloud:
@@ -224,8 +239,10 @@ def ollama_models(c):
 def ai_state():
     c = ai_load()
     models = ollama_models(c)
+    d = ai_docs()
     out({"provider": "ollama", "url": c["url"], "model": c["model"], "has_key": False,
-         "models": models or [], "reachable": models is not None})
+         "models": models or [], "reachable": models is not None, "rag": c.get("rag", True),
+         "docs": {"indexed": d["indexed"], "files": d["files"], "chunks": d["chunks"], "when": d["when"]}})
 
 
 def ai_set(a):
@@ -235,21 +252,172 @@ def ai_set(a):
         c["url"] = a[1].rstrip("/")
     elif k == "model" and len(a) > 1:
         c["model"] = a[1].strip()[:120]
+    elif k == "rag" and len(a) > 1 and a[1] in ("on", "off"):
+        c["rag"] = a[1] == "on"
     else:
-        sys.exit("usage: rice-tools ai set url http://localhost:11434 | model NAME (local Ollama only)")
+        sys.exit("usage: rice-tools ai set url http://localhost:11434 | model NAME | rag on|off (local Ollama only)")
     ai_save(c)
 
 
-def ai_ask():
-    c = ai_load()
+# ---------------- local files for the chat (RAG): nothing leaves the computer ----------------
+AI_INDEX = CACHE + "/ai-index.json"
+DOC_EXT = (".md", ".markdown", ".txt", ".org", ".rst", ".log", ".json", ".csv", ".html", ".htm", ".pdf")
+SKIP_DIRS = {".git", "node_modules", ".cache", ".local", ".config", "__pycache__", ".venv", "venv",
+             ".mozilla", ".steam", ".wine", "Steam", ".var", ".cargo", ".rustup", ".npm", ".config"}
+
+
+def ai_sources():
+    src = [DIR + "/note.txt", DIR + "/todo.json"]
+    for d in ("Documents", "Notes", "Desktop", "Downloads"):
+        p = HOME + "/" + d
+        if os.path.isdir(p):
+            src.append(p)
+    return src
+
+
+def doc_text(path):
+    if path.lower().endswith(".pdf"):
+        if not shutil.which("pdftotext"):
+            return ""
+        try:
+            return subprocess.run(["pdftotext", "-q", path, "-"], capture_output=True, text=True,
+                                  timeout=25).stdout[:2000000]
+        except Exception:
+            return ""
     try:
-        msgs = json.loads(sys.stdin.readline()).get("messages")
-        msgs = [{"role": m["role"], "content": str(m["content"])[:20000]} for m in msgs
-                if m.get("role") in ("system", "user", "assistant")][-40:]
+        with open(path, encoding="utf-8", errors="replace") as f:
+            return f.read(2000000)
+    except OSError:
+        return ""
+
+
+def doc_files(paths):
+    files = []
+    for raw in paths:
+        p = os.path.expanduser(raw)
+        if os.path.isfile(p):
+            files.append(p)
+        elif os.path.isdir(p):
+            for dp, dn, fn in os.walk(p):
+                dn[:] = [d for d in dn if d not in SKIP_DIRS and not d.startswith(".")]
+                for f in fn:
+                    if f.startswith(".") or not f.lower().endswith(DOC_EXT):
+                        continue
+                    fp = os.path.join(dp, f)
+                    try:
+                        if os.path.getsize(fp) <= 2000000:
+                            files.append(fp)
+                    except OSError:
+                        pass
+                if len(files) >= 500:
+                    break
+        if len(files) >= 500:
+            break
+    return list(dict.fromkeys(files))[:500]
+
+
+def chunks_of(text):
+    text = re.sub(r"\r\n?", "\n", text)
+    text = re.sub(r"\n{3,}", "\n\n", text).strip()
+    if not text:
+        return []
+    out, start = [], 0
+    while start < len(text):
+        end = min(len(text), start + 1100)
+        if end < len(text):
+            cut = text.rfind("\n", start + 600, end)
+            if cut < 0:
+                cut = text.rfind(" ", start + 700, end)
+            if cut > start:
+                end = cut
+        part = text[start:end].strip()
+        if part:
+            out.append(part)
+        if end >= len(text):
+            break
+        start = max(end - 150, start + 1)
+    return out
+
+
+def ai_index(paths):
+    files = doc_files(paths or ai_sources())
+    chunks, used = [], 0
+    for p in files:
+        text = doc_text(p)
+        cs = chunks_of(text)
+        if cs:
+            used += 1
+            for c in cs:
+                chunks.append({"src": p.replace(HOME, "~", 1), "text": c})
+        if len(chunks) >= 6000:
+            break
+    os.makedirs(CACHE, exist_ok=True)
+    tmp = AI_INDEX + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump({"when": time.time(), "files": used, "chunks": chunks}, f, ensure_ascii=False)
+    os.chmod(tmp, 0o600)
+    os.replace(tmp, AI_INDEX)
+    return {"ok": True, "files": used, "chunks": len(chunks), "when": time.time()}
+
+
+def ai_index_load():
+    try:
+        j = json.load(open(AI_INDEX))
+        if isinstance(j.get("chunks"), list):
+            return j
     except Exception:
-        return out({"err": "bad request"})
-    if not msgs or not local_url(c["url"]):
-        return out({"err": "The address of the model is not set"})
+        pass
+    return {"when": 0, "files": 0, "chunks": []}
+
+
+def ai_docs():
+    j = ai_index_load()
+    return {"indexed": bool(j["chunks"]), "files": j.get("files", 0), "chunks": len(j.get("chunks", [])),
+            "when": j.get("when", 0), "sources": ai_sources()}
+
+
+def ai_tokens(t):
+    return re.findall(r"[0-9a-zа-яё]{3,}", t.lower())
+
+
+def ai_search(q, k=4):
+    j = ai_index_load()
+    terms = list(dict.fromkeys(ai_tokens(q)))[:24]
+    if not terms or not j["chunks"]:
+        return []
+    scored = []
+    for c in j["chunks"]:
+        low = c["text"].lower()
+        score = 0
+        for t in terms:
+            score += low.count(t)
+        if not score:
+            continue
+        name = os.path.basename(c["src"]).lower()
+        score += sum(3 for t in terms if t in name)
+        # shorter pieces win when the score is the same
+        scored.append((score / (1 + len(c["text"]) / 4000.0), c))
+    scored.sort(key=lambda x: x[0], reverse=True)
+    return [{"src": c["src"], "text": c["text"]} for _, c in scored[:k]]
+
+
+def ai_context(q):
+    hits = ai_search(q)
+    if not hits:
+        return "", []
+    srcs = list(dict.fromkeys(h["src"] for h in hits))
+    parts = []
+    size = 0
+    for h in hits:
+        p = "[%s]\n%s" % (h["src"], h["text"])
+        if size + len(p) > 7000:
+            break
+        parts.append(p)
+        size += len(p)
+    return "\n\n".join(parts), srcs
+
+
+def ai_stream(c, msgs):
     base = c["url"].rstrip("/")
     model = c["model"]
     if not model:
@@ -282,6 +450,69 @@ def ai_ask():
         out({"err": "The service answered %d. %s" % (e.code, msg)})
     except Exception:
         out({"err": "Ollama does not answer at " + base + " (ollama serve starts it)"})
+
+
+def ai_ask():
+    c = ai_load()
+    try:
+        req = json.loads(sys.stdin.readline())
+        msgs = [{"role": m["role"], "content": str(m["content"])[:20000]} for m in req.get("messages", [])
+                if m.get("role") in ("system", "user", "assistant")][-40:]
+        rag = req.get("rag") is True
+    except Exception:
+        return out({"err": "bad request"})
+    if not msgs or not local_url(c["url"]):
+        return out({"err": "The address of the model is not set"})
+    if rag:
+        q = next((m["content"] for m in reversed(msgs) if m["role"] == "user"), "")
+        ctx, srcs = ai_context(q)
+        if ctx:
+            out({"sources": [{"name": os.path.basename(s), "src": s} for s in srcs]})
+            msgs = [{"role": "system", "content":
+                     "You answer from the notes below, which are on this computer. Use them when they fit; "
+                     "if they do not contain the answer, say that plainly and answer from general knowledge only "
+                     "when it is clearly useful. Do not invent sources.\n\n" + ctx}] + msgs
+        else:
+            out({"sources": []})
+    ai_stream(c, msgs)
+
+
+AUTO_PROMPTS = {
+    "summarize": "Summarize the text in the language it is written in. Short: 3 to 6 bullets, then one line if it matters. No preamble.",
+    "translate-en": "Translate the text into English. Give only the translation, keep the formatting.",
+    "translate-ru": "Translate the text into Russian. Give only the translation, keep the formatting.",
+    "extract": "Extract the important parts of the text: names, dates, numbers, decisions and open questions. Short bullets. Answer in the language of the text.",
+    "tasks": "Turn the text into a short checklist of concrete tasks. One line per task, no preamble. Answer in the language of the text.",
+}
+
+
+def ai_auto(mode):
+    text = sys.stdin.read(60000).strip()
+    if not text:
+        return out({"err": "There is no text: paste it or copy it first"})
+    if mode not in AUTO_PROMPTS:
+        return out({"err": "usage: rice-tools ai auto summarize|translate-en|translate-ru|extract|tasks"})
+    c = ai_load()
+    if not local_url(c["url"]):
+        return out({"err": "The address of the model is not set"})
+    ai_stream(c, [{"role": "system", "content": AUTO_PROMPTS[mode]},
+                  {"role": "user", "content": text[:20000]}])
+
+
+def ai_ocr(path):
+    if not os.path.isfile(path):
+        return out({"err": "No such picture: " + path})
+    if not shutil.which("tesseract"):
+        return out({"err": "tesseract is not installed: install tesseract and tesseract-data-rus"})
+    try:
+        r = subprocess.run(["tesseract", path, "stdout", "-l", "eng+rus"], capture_output=True, text=True, timeout=90)
+        txt = (r.stdout or "").strip()
+        if txt:
+            out({"t": txt})
+        else:
+            out({"err": (r.stderr or "No text found in the picture").strip()[:300]})
+    except Exception as e:
+        out({"err": str(e)[:300]})
 
 
 # ---------------- files for the launcher ----------------
@@ -352,6 +583,20 @@ def main(a):
         ai_set(a[3:])
     elif cmd == "ai" and len(a) > 2 and a[2] == "ask":
         ai_ask()
+    elif cmd == "ai" and len(a) > 2 and a[2] == "auto":
+        ai_auto(a[3] if len(a) > 3 else "")
+    elif cmd == "ai" and len(a) > 2 and a[2] == "ocr":
+        ai_ocr(a[3] if len(a) > 3 else "")
+    elif cmd == "ai" and len(a) > 2 and a[2] == "index":
+        out(ai_index(a[3:]))
+    elif cmd == "ai" and len(a) > 2 and a[2] == "docs":
+        out(ai_docs())
+    elif cmd == "ai" and len(a) > 2 and a[2] == "forget":
+        try:
+            os.remove(AI_INDEX)
+        except OSError:
+            pass
+        out({"ok": True, "indexed": False, "files": 0, "chunks": 0, "when": 0})
     else:
         sys.exit(__doc__)
 

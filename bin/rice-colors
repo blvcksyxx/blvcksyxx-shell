@@ -3,17 +3,20 @@
 
   rice-colors get            current scheme key
   rice-colors mode KEY       set the scheme and re-apply it to the current wallpaper
+  rice-colors custom #RRGGBB make and use a scheme from your own color (Settings > Colors)
   rice-colors list           JSON list of schemes for the settings app
   rice-colors scheme KEY     "matugen-type seed-color ws-active" (used by rice-walls)
   rice-colors refresh        re-color notifications and the lock screen after a theme change
 """
 import json
 import os
+import re
 import subprocess
 import sys
 
 HOME = os.path.expanduser("~")
 MODE = HOME + "/.config/rice/color-mode"
+CUSTOM = HOME + "/.config/rice/color-custom.json"
 CURRENT = HOME + "/.cache/rice/wallpaper-current"
 WALLS = HOME + "/.local/bin/rice-walls"
 
@@ -47,7 +50,24 @@ SCHEMES = [
     ("orchid", "Orchid",  "color",  "scheme-tonal-spot", "#9b8cff", A, ["#100e1c", "#b5a9ff", "#ece9ff"]),
     ("violet", "Violet",  "color",  "scheme-tonal-spot", "#7e57c2", A, ["#120d1c", "#a58bdc", "#ece4f7"]),
 ]
-BY_KEY = {s[0]: s for s in SCHEMES}
+def custom_seed():
+    try:
+        v = str(json.load(open(CUSTOM)).get("seed", "")).strip()
+        return v if re.match(r"^#[0-9a-fA-F]{6}$", v) else ""
+    except Exception:
+        return ""
+
+
+def schemes():
+    out = list(SCHEMES)
+    seed = custom_seed()
+    if seed:
+        out.append(("custom", "Custom", "color", "scheme-tonal-spot", seed, A, ["#141518", seed, "#f6f5f4"]))
+    return out
+
+
+def by_key():
+    return {s[0]: s for s in schemes()}
 
 
 def current():
@@ -55,7 +75,7 @@ def current():
         v = open(MODE).read().strip()
     except Exception:
         return "auto"
-    return v if v in BY_KEY else "auto"
+    return v if v in by_key() else "auto"
 
 
 def reapply():
@@ -83,15 +103,33 @@ def main(argv):
     if cmd == "get":
         print(current())
     elif cmd == "list":
-        print(json.dumps([{"key": s[0], "name": s[1], "kind": s[2], "preview": s[6]} for s in SCHEMES]))
+        print(json.dumps([{"key": s[0], "name": s[1], "kind": s[2], "preview": s[6],
+                           "seed": s[4] if s[0] == "custom" else ""} for s in schemes()]))
     elif cmd == "scheme":
-        s = BY_KEY.get(argv[2] if len(argv) > 2 else "")
+        s = by_key().get(argv[2] if len(argv) > 2 else "")
         if not s or not s[3]:
             sys.exit(1)
         print(s[3], s[4], s[5])
+    elif cmd == "custom":
+        seed = argv[2] if len(argv) > 2 else ""
+        if not re.match(r"^#[0-9a-fA-F]{6}$", seed):
+            sys.stderr.write("usage: rice-colors custom #RRGGBB\n")
+            sys.exit(1)
+        os.makedirs(os.path.dirname(CUSTOM), exist_ok=True)
+        tmp = CUSTOM + ".tmp"
+        with open(tmp, "w") as f:
+            json.dump({"seed": seed.upper()}, f)
+        os.replace(tmp, CUSTOM)
+        with open(MODE, "w") as f:
+            f.write("custom\n")
+        if os.access(WALLS, os.X_OK):
+            reapply()
+        else:
+            refresh()
+        print(seed.upper())
     elif cmd == "mode":
         k = argv[2] if len(argv) > 2 else "auto"
-        if k not in BY_KEY:
+        if k not in by_key():
             sys.stderr.write("unknown scheme: %s\n" % k)
             sys.exit(1)
         os.makedirs(os.path.dirname(MODE), exist_ok=True)

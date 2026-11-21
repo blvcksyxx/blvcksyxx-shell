@@ -55,6 +55,7 @@ ShellRoot {
         { id: "forecast", name: "Forecast", icon: "\uf0c2", card: true },
         { id: "music", name: "Music card", icon: "\uf001", card: true },
         { id: "datepill", name: "Date & time", icon: "\uf017", card: true },
+        { id: "clipboard", name: "Clipboard", icon: "\uf0ea", card: true },
         { id: "date", name: "Date", icon: "\uf073", card: true,
           styles: [["flower", "Flower"], ["cookie", "Cookie"], ["clover", "Clover"], ["sun", "Sun"], ["square", "Square"], ["circle", "Circle"]] }
     ]
@@ -164,7 +165,7 @@ ShellRoot {
     Trigger { path: root.home + "/.config/rice/desktop.json"; every: 1500
         onContent: function(t) { if (!cfgProc.running) cfgProc.running = true } }
     Timer {
-        interval: 3000
+        interval: 10000
         running: true
         repeat: true
         onTriggered: { if (!cfgProc.running) cfgProc.running = true }
@@ -397,6 +398,18 @@ ShellRoot {
             NotesWidget { id: notesW; anchors.fill: parent; pal: notesWin.pal; bg: notesWin.bgv }
         }
     }
+    // clipboard history: what you copied, newest first (cliphist through rice-clip)
+    LazyLoader { active: root.on("clipboard")
+        WidgetWindow {
+            id: clipWin
+            wid: "clipboard"; wc: root.wc("clipboard"); active: root.on("clipboard"); editing: root.editing; hidden: root.hideWidgets
+            bw: root.sw; bh: root.sh; cw: 330; ch: 300; defX: 660; defY: 200
+            onMoved: function(id, x, y) { root.savePos(id, x, y) }
+            Component.onCompleted: root.reg(wid, clipWin)
+            Component.onDestruction: root.unreg(wid)
+            ClipboardWidget { anchors.fill: parent; pal: clipWin.pal; bg: clipWin.bgv; running: root.on("clipboard") && !root.hideWidgets }
+        }
+    }
     // audio visualizer: see-through, at the bottom of the screen by default, never takes clicks
     // made only while it is on (an off widget takes no memory)
     LazyLoader { active: root.on("gauge")
@@ -572,7 +585,8 @@ ShellRoot {
     EditorWindow { root: root }
 
     // ---- dashboard (middle of the bar edge, SUPER + W for wallpapers)
-    Launcher { }
+    // made when it is first opened, let go after 10 minutes closed (V4.84: it held every app's icon from the start)
+    LazyPanel { name: "launcher-open"; keep: 600000; Launcher { } }
     // SUPER + Tab: every workspace with its windows; ALT + Tab: the window switcher (rice-taskview)
     TaskView { }
     // the clipboard history (SUPER + V)

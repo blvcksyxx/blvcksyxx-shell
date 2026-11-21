@@ -3,6 +3,51 @@
 All notable changes to blvcksyxx shell are listed here. The current version is in
 `VERSION`.
 
+## V2.1.0
+
+- The whole upstream V4.84 update is in: much lighter running, minimize and stack
+  windows, your own keys, launcher favourites, a gentler volume, login screen clocks and
+  niri monitor scrolling. The blvcksyxx branding, the bottom-right control-centre corner,
+  the fast launcher, the `rice-*` naming and the signed updates stay
+- Performance: the task view lets its window pictures go when it is closed, waves are
+  drawn about 30 times a second, the Infinite Desktop wallpaper exists only while that
+  feature is on, the launcher is made on first use and let go after 10 minutes, and the
+  shell wakes up less often. `rice-perf` shows what each part uses
+- Windows: `SUPER + H` minimizes, `SUPER + SHIFT + H` brings the last one back,
+  `SUPER + T` starts or leaves a stack, `SUPER + CTRL + Right/Left` walks it, and
+  `SUPER + CTRL + SHIFT + Left/Right` joins it. All can get other keys in Settings >
+  System > Keybinds; "Turn a key off" frees any window manager key for one of your own
+- Launcher: right-click an app (or `Ctrl + D`) to keep it first, with a star
+- Volume: a gentler curve at low levels and 150 % at the top on this fork
+- Login screen: classic, stacked, center, pill and shapes; Classic is the default here
+  (`rice-sddm clock STYLE`)
+- niri: at the last column, `SUPER + Left/Right` and the wheel go on to the next monitor,
+  `SUPER + Ctrl + Left/Right` take the window along
+- Settings: lazy by default now (it quits a minute after you close it);
+  Settings > Desktop > Performance > Keep Settings ready restores the old behaviour
+- Toolbox: new **Games** tab lists Steam, Lutris and menu games, with search, refresh and
+  one click to launch (`rice-games`); new **Auto** tab summarizes, translates English and
+  Russian, extracts facts and makes tasks with the local Ollama model
+  (`rice-tools ai auto ...`); `rice-tools` keeps a `tools.json` with the old six tabs and
+  adds the two new ones by itself
+- Toolbox > Chat: a Files toggle indexes Documents, Notes, Desktop and the Note widget,
+  then answers with the files it used (`rice-tools ai index|docs|forget|ask`). Ollama on
+  this computer only, no cloud provider and no keys
+- Toolbox > Note: Markdown with Edit and Preview, H1/H2, bold, italic, list, to-do,
+  quote, code and link buttons, `Ctrl + P` to switch; the same note as the widget
+- Clipboard: a new desktop widget with the newest copies and the pins; click one to put
+  it back. The full history stays on `SUPER + V` (cliphist through `rice-clip`)
+- Privacy: Settings > Security shows the microphone, camera and screen in use, a
+  lock-now button and the autolock time, clipboard history and clear, private DNS presets,
+  a firewall switch and the broad permissions of installed Flatpak apps
+  (`rice-security privacy`). Nothing is stored or sent
+- Colors: Settings > Appearance > Colors takes any `#RRGGBB` colour and makes the shell
+  from it (`rice-colors custom #8B7BFF`); themes stay in `~/.config/rice/themes`
+- New desktop widget: Clipboard, in Settings > Desktop > Widgets
+- Russian and English are complete for the new screens; other languages fall back to
+  English instead of empty labels
+- Nothing is reset: settings, wallpapers, themes and edits stay
+
 ## V2.0.1
 
 - Update Center and `rice-update check` read the version correctly now: 2.0.0 is shown

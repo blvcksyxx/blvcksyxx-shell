@@ -1,0 +1,292 @@
+#!/usr/bin/env python3
+"""rice-games: your games from Steam, Lutris and the menu, in one place (Toolbox > Games).
+
+  rice-games list [--all]      JSON: the installed games
+  rice-games launch ID          start one (steam:APPID, lutris:ID, desktop:FILE.desktop)
+  rice-games state              JSON: what was found and when it was read
+
+Nothing leaves the computer. Steam is read from its library files, Lutris from its own
+database, and the rest from the .desktop files of the applications menu. A missing program
+only makes its section empty; the others still work.
+"""
+import glob
+import json
+import os
+import re
+import shutil
+import sqlite3
+import subprocess
+import sys
+import time
+
+HOME = os.path.expanduser("~")
+CACHE = HOME + "/.cache/rice/games.json"
+TTL = 45
+
+STEAM_ROOTS = [HOME + "/.steam/steam", HOME + "/.local/share/Steam",
+               HOME + "/.var/app/com.valvesoftware.Steam/data/Steam"]
+LUTRIS_DB = HOME + "/.local/share/lutris/pga.db"
+DESKTOP_DIRS = [HOME + "/.local/share/applications", "/usr/local/share/applications",
+                "/usr/share/applications", HOME + "/.local/share/flatpak/exports/share/applications",
+                "/var/lib/flatpak/exports/share/applications"]
+ICON_ROOTS = [HOME + "/.local/share/icons", HOME + "/.local/share/flatpak/exports/share/icons",
+              "/var/lib/flatpak/exports/share/icons", "/usr/share/icons", "/usr/share/pixmaps"]
+SKIP_DESKTOP = ("steam", "lutris", "heroic", "bottles", "wine", "playonlinux")
+
+
+def out(j):
+    print(json.dumps(j, ensure_ascii=False))
+
+
+def read(p, limit=4000000):
+    try:
+        with open(p, encoding="utf-8", errors="replace") as f:
+            return f.read(limit)
+    except OSError:
+        return ""
+
+
+def keyvals(text):
+    return {k: v for k, v in re.findall(r'"([^"]+)"\s+"([^"]*)"', text)}
+
+
+def steam_roots():
+    return [r for r in STEAM_ROOTS if os.path.isdir(r + "/steamapps")]
+
+
+def steam_games():
+    games = []
+    seen = set()
+    for root in steam_roots():
+        libs = [root]
+        folders = read(root + "/steamapps/libraryfolders.vdf")
+        for p in re.findall(r'"path"\s+"([^"]+)"', folders):
+            p = p.replace("\\\\", "/")
+            if p.startswith("~"):
+                p = HOME + p[1:]
+            if p not in libs:
+                libs.append(p)
+        for lib in libs:
+            for manifest in glob.glob(lib + "/steamapps/appmanifest_*.acf"):
+                j = keyvals(read(manifest))
+                appid = j.get("appid", "")
+                name = j.get("name", "").strip()
+                if not appid.isdigit() or not name or appid in seen:
+                    continue
+                # 4 = fully installed; a manifest without the field is an older Steam
+                if j.get("StateFlags") and not (int(j["StateFlags"]) & 4):
+                    continue
+                seen.add(appid)
+                icon = ""
+                for c in (root + "/appcache/librarycache/%s_icon.jpg" % appid,
+                          root + "/appcache/librarycache/%s_header.jpg" % appid):
+                    if os.path.isfile(c):
+                        icon = c
+                        break
+                games.append({"id": "steam:" + appid, "name": name, "source": "Steam",
+                              "icon": icon, "extra": j.get("installdir", "")})
+    return games
+
+
+def lutris_games():
+    if not os.path.isfile(LUTRIS_DB):
+        return []
+    games, seen = [], set()
+    try:
+        con = sqlite3.connect("file:%s?mode=ro" % LUTRIS_DB, uri=True)
+        con.row_factory = sqlite3.Row
+        rows = []
+        try:
+            rows = con.execute("SELECT * FROM games WHERE installed = 1 ORDER BY name").fetchall()
+        except sqlite3.Error:
+            rows = con.execute("SELECT * FROM games ORDER BY name").fetchall()
+        con.close()
+    except Exception:
+        return []
+    for r in rows:
+        try:
+            gid = int(r["id"])
+        except Exception:
+            continue
+        name = (r["name"] or "").strip()
+        slug = (r["slug"] or "").strip()
+        if not name or gid in seen:
+            continue
+        seen.add(gid)
+        icon = ""
+        for pat in ("coverart", "banners", "icons"):
+            for ext in (".jpg", ".png", ".webp"):
+                for base in (HOME + "/.local/share/lutris/" + pat, HOME + "/.cache/lutris/" + pat):
+                    c = "%s/%s%s" % (base, slug or gid, ext)
+                    if os.path.isfile(c):
+                        icon = c
+                        break
+                if icon:
+                    break
+            if icon:
+                break
+        games.append({"id": "lutris:%d" % gid, "name": name, "source": "Lutris", "icon": icon, "extra": slug})
+    return games
+
+
+def desktop_parse(path):
+    text = read(path, 300000)
+    if not text:
+        return None
+    in_entry = False
+    d = {}
+    for line in text.splitlines():
+        line = line.strip()
+        if line.startswith("[") and line.endswith("]"):
+            in_entry = line == "[Desktop Entry]"
+            continue
+        if not in_entry or not line or line.startswith("#") or "=" not in line:
+            continue
+        k, v = line.split("=", 1)
+        # the localized English name when there is one
+        if k.strip() == "Name" or k.strip() == "Name[en]":
+            d[k.strip()] = v.strip()
+        else:
+            d.setdefault(k.strip(), v.strip())
+    if d.get("Type", "Application") != "Application":
+        return None
+    if d.get("NoDisplay", "").lower() == "true" or d.get("Hidden", "").lower() == "true":
+        return None
+    cats = d.get("Categories", "")
+    if not re.search(r"(^|;)(Game|Emulator)(;|$)", cats):
+        return None
+    name = d.get("Name[en]") or d.get("Name", "")
+    execu = d.get("Exec", "")
+    if not name or not execu:
+        return None
+    return {"name": name, "exec": execu, "icon": d.get("Icon", ""), "cats": cats}
+
+
+def icon_path(name):
+    if not name:
+        return ""
+    if os.path.isabs(name):
+        return name if os.path.isfile(name) else ""
+    base = os.path.basename(name)
+    for root in ICON_ROOTS:
+        for size in ("scalable", "256x256", "128x128", "64x64", "48x48", "32x32"):
+            for ext in (".svg", ".png", ".xpm"):
+                c = "%s/hicolor/%s/apps/%s%s" % (root, size, base, ext)
+                if os.path.isfile(c):
+                    return c
+        for ext in (".png", ".svg", ".xpm"):
+            c = "%s/%s%s" % (root, base, ext)
+            if os.path.isfile(c):
+                return c
+    return ""
+
+
+def desktop_games():
+    games, seen = [], set()
+    for d in DESKTOP_DIRS:
+        if not os.path.isdir(d):
+            continue
+        for f in sorted(glob.glob(d + "/*.desktop")):
+            gid = os.path.basename(f).lower()
+            if any(gid.startswith(s) or ("-" + s) in gid for s in SKIP_DESKTOP):
+                continue
+            j = desktop_parse(f)
+            if not j:
+                continue
+            key = j["name"].lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            games.append({"id": "desktop:" + os.path.basename(f), "name": j["name"], "source": "Menu",
+                          "icon": icon_path(j["icon"]), "extra": j["exec"][:160]})
+    return games
+
+
+def all_games():
+    return steam_games() + lutris_games() + desktop_games()
+
+
+def cached():
+    try:
+        j = json.load(open(CACHE))
+        if time.time() - float(j.get("when", 0)) < TTL and isinstance(j.get("games"), list):
+            return j
+    except Exception:
+        pass
+    return None
+
+
+def save_cache(games):
+    try:
+        os.makedirs(os.path.dirname(CACHE), exist_ok=True)
+        tmp = CACHE + ".tmp"
+        with open(tmp, "w") as f:
+            json.dump({"when": time.time(), "games": games}, f, ensure_ascii=False)
+        os.replace(tmp, CACHE)
+    except OSError:
+        pass
+
+
+def launch(gid):
+    gid = (gid or "").strip()
+    if gid.startswith("steam:") and gid[6:].isdigit():
+        appid = gid[6:]
+        steam = shutil.which("steam") or next(
+            (c for c in ("/usr/bin/steam", "/usr/games/steam") if os.access(c, os.X_OK)), None)
+        if steam:
+            cmd = [steam, "-applaunch", appid]
+        elif os.path.isfile("/usr/bin/flatpak"):
+            cmd = ["flatpak", "run", "com.valvesoftware.Steam", "-applaunch", appid]
+        else:
+            return {"ok": False, "error": "Steam is not installed"}
+    elif gid.startswith("lutris:") and gid[7:].isdigit():
+        lutris = shutil.which("lutris") or next(
+            (c for c in ("/usr/bin/lutris",) if os.access(c, os.X_OK)), None)
+        if not lutris:
+            return {"ok": False, "error": "Lutris is not installed"}
+        cmd = [lutris, "lutris:rungameid/" + gid[7:]]
+    elif gid.startswith("desktop:") and "/" not in gid[8:] and gid.endswith(".desktop"):
+        gtkl = shutil.which("gtk-launch") or ("/usr/bin/gtk-launch" if os.access("/usr/bin/gtk-launch", os.X_OK) else None)
+        if not gtkl:
+            return {"ok": False, "error": "gtk-launch is not installed"}
+        cmd = [gtkl, gid[8:]]
+    else:
+        return {"ok": False, "error": "unknown game"}
+    try:
+        subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                         stderr=subprocess.DEVNULL, start_new_session=True)
+        return {"ok": True}
+    except OSError as e:
+        return {"ok": False, "error": str(e)}
+
+
+def main(a):
+    cmd = a[1] if len(a) > 1 else "list"
+    if cmd == "list":
+        c = cached()
+        if c is None:
+            games = all_games()
+            save_cache(games)
+            when = time.time()
+        else:
+            games, when = c["games"], c["when"]
+        games.sort(key=lambda g: (g.get("source", ""), g.get("name", "").lower()))
+        counts = {}
+        for g in games:
+            counts[g["source"]] = counts.get(g["source"], 0) + 1
+        out({"games": games, "counts": counts, "when": when})
+    elif cmd == "launch":
+        if len(a) < 3:
+            out({"ok": False, "error": "usage: rice-games launch ID"})
+        else:
+            out(launch(a[2]))
+    elif cmd == "state":
+        c = cached()
+        out({"cached": c is not None, "when": (c or {}).get("when", 0),
+             "count": len((c or {}).get("games", []))})
+    else:
+        sys.exit(__doc__)
+
+
+if __name__ == "__main__":
+    main(sys.argv)

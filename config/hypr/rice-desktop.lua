@@ -16,6 +16,9 @@ rule({ name = "rice-calendar-float", match = { class = "org.gnome.Calendar" }, f
 -- full-screen layers that animate themselves: no extra pop-in from Hyprland
 pcall(hl.layer_rule, { name = "rice-welcome-noanim", match = { namespace = "rice-welcome" }, no_anim = true })
 pcall(hl.layer_rule, { name = "rice-tour-dim-noanim", match = { namespace = "rice-tour-dim" }, no_anim = true })
+-- Infinite Desktop's moving wallpaper starts exactly over the wallpaper and animates itself
+pcall(hl.layer_rule, { name = "rice-wallcanvas-noanim", match = { namespace = "rice-wallcanvas" }, no_anim = true })
+
 -- the toolbox (SUPER + X): blur behind it, unless Settings > Desktop > Toolbox turned it off (rice-tools set blur ...)
 function RiceToolsBlur(on)
     pcall(hl.layer_rule, { name = "rice-tools-blur", match = { namespace = "rice-tools" }, blur = on and true or false, ignore_alpha = 0.29 })

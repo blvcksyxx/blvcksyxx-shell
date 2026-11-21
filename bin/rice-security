@@ -14,6 +14,11 @@ command, so you see it and type your password yourself.
   rice-security term CMD...                what the Install / Update buttons run
   rice-security clear-logs                 remove Hyprland's log files
   rice-security weekly on|off              a quick scan every week (a notification when something is found)
+  rice-security privacy                    JSON: microphone, camera and screen users, DNS, firewall, clipboard
+  rice-security mic-mute                   mute or unmute the default microphone
+  rice-security clipboard-clear            forget the clipboard history (pins stay)
+  rice-security dns-command off|cloudflare|quad9   the command the Privacy buttons run in a terminal
+  rice-security firewall-command on|off    the command the Privacy button runs in a terminal
 """
 import hashlib
 import json
@@ -416,7 +421,213 @@ def state():
                  "update": "sudo freshclam"},
         "last": last, "progress": prog, "quarantine": qlist(), "checks": checks(), "integrity": integrity(),
         "weekly": weekly_on(),
+        "privacy": privacy(),
         "hardening": {"on": on, "values": hard, "file": os.path.exists(SYSCTL), "on_cmd": harden_cmd(True), "off_cmd": harden_cmd(False)},
+    }
+
+
+# ---------------------------------------------------------------- privacy
+DNS_CONF = "/etc/systemd/resolved.conf.d/50-blvcksyxx-dns.conf"
+DNS_SERVERS = {"cloudflare": ("1.1.1.1 1.0.0.1", "9.9.9.9"), "quad9": ("9.9.9.9 149.112.112.112", "1.1.1.1")}
+CLIP = HOME + "/.local/bin/rice-clip"
+
+
+def dns_state():
+    enabled = run(["systemctl", "is-active", "systemd-resolved"]).strip() == "active"
+    current = ""
+    out = run(["resolvectl", "status"])
+    for line in out.splitlines():
+        line = line.strip()
+        if line.startswith("Current DNS Server:"):
+            current = line.split(":", 1)[1].strip()
+            break
+        if line.startswith("DNS Servers:") and not current:
+            current = line.split(":", 1)[1].strip()
+    preset = "off"
+    try:
+        body = open(DNS_CONF).read()
+        if "1.1.1.1" in body:
+            preset = "cloudflare"
+        elif "9.9.9.9" in body:
+            preset = "quad9"
+    except Exception:
+        pass
+    return {"enabled": enabled, "current": current or ("Automatic" if enabled else "Not using systemd-resolved"),
+            "preset": preset, "conf": DNS_CONF,
+            "cmds": {"off": dns_command("off"), "cloudflare": dns_command("cloudflare"), "quad9": dns_command("quad9")}}
+
+
+def dns_command(preset):
+    restart = "sudo systemctl restart systemd-resolved 2>/dev/null || true"
+    if preset == "off":
+        return "sudo rm -f %s; %s; echo 'DNS is automatic again'" % (DNS_CONF, restart)
+    if preset not in DNS_SERVERS:
+        return "echo 'unknown DNS preset'"
+    dns, fallback = DNS_SERVERS[preset]
+    body = "\\n".join(["# blvcksyxx shell: Settings > Security > Privacy", "[Resolve]", "DNS=" + dns,
+                        "FallbackDNS=" + fallback, "DNSOverTLS=opportunistic"])
+    return ("printf '%s\\n' | sudo tee %s >/dev/null; %s; echo 'Private DNS: %s'"
+            % (body, DNS_CONF, restart, preset))
+
+
+def firewall_state():
+    active = ""
+    for unit in ("ufw", "firewalld", "nftables"):
+        if run(["systemctl", "is-active", unit]).strip() == "active":
+            active = unit
+            break
+    have = {u: bool(shutil.which(u)) or os.path.exists("/usr/bin/" + u) for u in ("ufw", "firewall-cmd")}
+    on_cmd = off_cmd = ""
+    if active == "ufw":
+        off_cmd = "sudo ufw disable"
+    elif active == "firewalld":
+        off_cmd = "sudo systemctl disable --now firewalld"
+    if active:
+        on_cmd = "echo 'A firewall is already running (%s)'" % active
+    elif have["ufw"]:
+        on_cmd = "sudo ufw --force enable"
+    elif have["firewall-cmd"] or os.path.exists("/usr/bin/firewalld"):
+        on_cmd = "sudo systemctl enable --now firewalld"
+    else:
+        on_cmd = "echo 'Install ufw (sudo pacman -S ufw) or firewalld first'"
+    return {"on": bool(active), "service": active, "on_cmd": on_cmd, "off_cmd": off_cmd}
+
+
+def pw_nodes():
+    """the capture streams PipeWire knows about: microphone and screen"""
+    if not shutil.which("pw-dump"):
+        return [], []
+    try:
+        data = json.loads(run(["pw-dump"], timeout=12) or "[]")
+    except Exception:
+        return [], []
+    mic, screen = [], []
+    for node in data if isinstance(data, list) else []:
+        info = node.get("info") or {}
+        props = info.get("props") or {}
+        cls = str(props.get("media.class", ""))
+        if cls not in ("Stream/Input/Audio", "Stream/Input/Video"):
+            continue
+        app = (props.get("application.name") or props.get("application.process.binary")
+               or props.get("node.name") or "Unknown")
+        pid = props.get("application.process.id") or ""
+        row = {"app": str(app), "pid": str(pid)}
+        if cls.endswith("/Audio"):
+            mic.append(row)
+        else:
+            screen.append(row)
+    return mic, screen
+
+
+def camera_users():
+    users = {}
+    for d in os.listdir("/proc"):
+        if not d.isdigit():
+            continue
+        try:
+            for fd in os.listdir("/proc/%s/fd" % d):
+                try:
+                    target = os.readlink("/proc/%s/fd/%s" % (d, fd))
+                except OSError:
+                    continue
+                if target.startswith("/dev/video"):
+                    name = ""
+                    try:
+                        name = open("/proc/%s/comm" % d).read().strip()
+                    except OSError:
+                        pass
+                    users[d] = {"app": name or ("PID " + d), "pid": d, "device": target}
+                    break
+        except OSError:
+            continue
+    return sorted(users.values(), key=lambda x: x["app"].lower())
+
+
+def geo_clients():
+    out = run(["busctl", "--system", "tree", "org.freedesktop.GeoClue2"], timeout=5)
+    return sorted(set(re.findall(r"/org/freedesktop/GeoClue2/Client/\d+", out)))
+
+
+def clipboard_state():
+    n = 0
+    if shutil.which("cliphist"):
+        n = len([l for l in run(["cliphist", "list"]).splitlines() if l.strip()])
+    return {"available": bool(shutil.which("cliphist")), "entries": n,
+            "clear_cmd": HOME + "/.local/bin/rice-clip wipe 2>/dev/null || true"}
+
+
+def autolock_state():
+    """the idle lock the shell has now (rice-lock writes hypridle's config)"""
+    tool = HOME + "/.local/bin/rice-lock"
+    if not os.access(tool, os.X_OK):
+        return {"on": False, "minutes": 0, "before_sleep": False}
+    try:
+        j = json.loads(run([tool, "state"], timeout=10) or "{}")
+        m = int(j.get("lock_after", 0) or 0)
+        return {"on": m > 0, "minutes": m, "before_sleep": bool(j.get("lock_before_sleep"))}
+    except Exception:
+        return {"on": False, "minutes": 0, "before_sleep": False}
+
+
+def flatpak_apps():
+    """installed Flatpak apps and the broad things they may reach (read from their own overrides)"""
+    if not shutil.which("flatpak"):
+        return []
+    apps = []
+    out = run(["flatpak", "list", "--app", "--columns=application,name"], timeout=15)
+    for line in out.splitlines():
+        if "\t" not in line:
+            continue
+        app, name = line.split("\t", 1)
+        app, name = app.strip(), name.strip() or app.strip()
+        if not app or "." not in app:
+            continue
+        perm = run(["flatpak", "info", "--show-permissions", app], timeout=15)
+        def vals(key):
+            m = re.search(r"^%s=(.*)$" % key, perm, re.M)
+            return [x for x in (m.group(1).split(";") if m else []) if x]
+        sockets, devices, files = vals("sockets"), vals("devices"), vals("filesystems")
+        shared = vals("shared")
+        mic = "pulseaudio" in sockets
+        cam = "all" in devices or any(d.startswith("video") for d in devices)
+        wide = "host" in files or "home" in files or "all" in devices
+        reach = []
+        if mic:
+            reach.append("mic")
+        if cam:
+            reach.append("camera")
+        if wide:
+            reach.append("files")
+        if "network" in shared:
+            reach.append("network")
+        apps.append({"id": app, "name": name, "reach": reach, "wide": wide or cam or mic,
+                     "cmd": perm_cmd(app)})
+        if len(apps) >= 40:
+            break
+    return apps
+
+
+def perm_cmd(app):
+    flatseal = ""
+    for c in (HOME + "/.local/share/flatpak/exports/bin/com.github.tchx84.Flatseal", "/var/lib/flatpak/exports/bin/com.github.tchx84.Flatseal"):
+        if os.access(c, os.X_OK):
+            flatseal = c
+            break
+    if flatseal:
+        return flatseal + " " + app
+    if shutil.which("flatseal"):
+        return "flatseal " + app
+    return ("flatpak info --show-permissions %s; echo; echo 'Flatseal has switches for these: "
+            "flatpak install flathub com.github.tchx84.Flatseal'" % app)
+
+
+def privacy():
+    mic, screen = pw_nodes()
+    return {
+        "mic": mic, "camera": camera_users(), "screen": screen, "geo": geo_clients(),
+        "mic_muted": "MUTED" in run(["wpctl", "get-volume", "@DEFAULT_AUDIO_SOURCE@"]),
+        "dns": dns_state(), "firewall": firewall_state(), "clipboard": clipboard_state(),
+        "autolock": autolock_state(), "apps": flatpak_apps(),
     }
 
 
@@ -495,6 +706,19 @@ def main():
         cmd_weekly(a[1] == "on")
     elif c == "clear-logs":
         cmd_clear_logs()
+    elif c == "privacy":
+        print(json.dumps(privacy()))
+    elif c == "mic-mute":
+        run(["wpctl", "set-mute", "@DEFAULT_AUDIO_SOURCE@", "toggle"])
+        print(json.dumps({"muted": "MUTED" in run(["wpctl", "get-volume", "@DEFAULT_AUDIO_SOURCE@"])}))
+    elif c == "clipboard-clear":
+        run(["bash", "-c", clipboard_state()["clear_cmd"]])
+        print(json.dumps({"entries": clipboard_state()["entries"]}))
+    elif c == "dns-command" and len(a) > 1:
+        print(dns_command(a[1]))
+    elif c == "firewall-command" and len(a) > 1:
+        st = firewall_state()
+        print(st["on_cmd"] if a[1] == "on" else st["off_cmd"])
     else:
         print(__doc__)
         sys.exit(2)

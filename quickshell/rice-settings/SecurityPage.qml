@@ -19,6 +19,12 @@ Item {
     readonly property var integ: sec.integrity || ({})
     readonly property int changed: (integ.changed ? integ.changed.length : 0) + (integ.new ? integ.new.length : 0)
     readonly property int attention: found.length + changed
+    readonly property var priv: sec.privacy || ({ mic: [], camera: [], screen: [], geo: [], dns: {}, firewall: {}, clipboard: {}, autolock: {}, apps: [] })
+    readonly property int watching: (priv.mic || []).length + (priv.camera || []).length + (priv.screen || []).length
+    function reach(a) {
+        return (a.reach || []).map(function(k) { return k === "mic" ? I18n.t("Microphone") : k === "camera" ? I18n.t("Camera") : k === "files" ? I18n.t("Files") : I18n.t("Network") }).join(" · ")
+    }
+    function lockNow() { Quickshell.execDetached(["bash", "-c", "\"$HOME/.local/bin/rice-lock\" now"]) }
 
     function sh(args) { runner.command = ["bash", "-c", "\"$HOME/.local/bin/rice-security\" \"$@\" 2>&1", "_"].concat(args); runner.running = true }
     function term(cmd) { Quickshell.execDetached(["bash", "-c", "\"$HOME/.local/bin/rice-security\" term \"$1\"", "_", cmd]) }
@@ -108,6 +114,101 @@ Item {
             T { x: 24; y: 92; kind: "reading"; font.pixelSize: 13; width: parent.width - 48; wrapMode: Text.WordWrap; maximumLineCount: 2
                 color: M3.alpha(page.attention > 0 ? M3.inkErrorC : M3.inkPrimaryC, 0.85)
                 text: page.sec.last && page.sec.last.when ? I18n.t("Last virus scan") + ": " + page.ago(page.sec.last.when) + " · " + page.sec.last.files + " " + I18n.t("files") : I18n.t("No virus scan yet. Start one below.") }
+        }
+
+        // ---------- privacy: who is using the microphone, camera and screen, and the network switches ----------
+        SectionTitle { text: I18n.t("Privacy"); sub: I18n.t("Who is using your microphone, camera or screen right now, and what the network does. Nothing here is stored or sent anywhere.") }
+        Row3 {
+            warn: page.watching > 0
+            sym: page.watching > 0 ? "visibility" : "check_circle"; glyph: page.watching > 0 ? "\uf06e" : "\uf058"
+            label: page.watching > 0 ? page.watching + " " + I18n.t("app(s) are using a device") : I18n.t("Nothing is watching or listening")
+            desc: (priv.mic || []).length + " " + I18n.t("microphone") + " · " + (priv.camera || []).length + " " + I18n.t("camera") + " · " + (priv.screen || []).length + " " + I18n.t("screen")
+            btn: (priv.mic || []).length > 0 ? (priv.mic_muted ? I18n.t("Unmute") : I18n.t("Mute microphone")) : ""
+            btnVariant: "tonal"
+            onClicked: page.sh(["mic-mute"])
+        }
+        Repeater {
+            model: (priv.mic || []).concat(priv.camera || []).concat(priv.screen || [])
+            delegate: Row3 {
+                required property var modelData
+                required property int index
+                readonly property bool mic: index < (page.priv.mic || []).length
+                readonly property bool cam: !mic && index < (page.priv.mic || []).length + (page.priv.camera || []).length
+                sym: mic ? "mic" : (cam ? "photo_camera" : "screen_share"); glyph: mic ? "\uf130" : (cam ? "\uf030" : "\uf0c2")
+                label: modelData.app || "?"
+                desc: (mic ? I18n.t("Microphone") : (cam ? I18n.t("Camera") + (modelData.device ? " · " + modelData.device : "") : I18n.t("Screen"))) + (modelData.pid ? " · PID " + modelData.pid : "")
+            }
+        }
+        Row3 {
+            warn: (priv.geo || []).length > 0
+            sym: "location_on"; glyph: "\uf03e"
+            label: (priv.geo || []).length > 0 ? (priv.geo || []).length + " " + I18n.t("app(s) asked for your location") : I18n.t("Location is not in use")
+            desc: I18n.t("Apps get your location only through the system portal, and only while they ask for it.")
+        }
+        Row3 {
+            warn: !(priv.autolock && priv.autolock.on)
+            sym: "lock"; glyph: "\uf023"
+            label: (priv.autolock && priv.autolock.on) ? I18n.t("Locks after %1 min").replace("%1", priv.autolock.minutes) : I18n.t("The screen does not lock by itself")
+            desc: I18n.t("SUPER + L locks it now. The timer, sleep and the look of the lock screen are in Idle & Lockscreen.")
+            btn: I18n.t("Lock now"); btnVariant: "filled"
+            onClicked: page.lockNow()
+        }
+        SettingRow {
+            label: I18n.t("Autolock")
+            desc: I18n.t("How long you can be away before the screen locks, and whether it locks before sleep")
+            reserved: 250
+            Btn { anchors.right: parent.right; anchors.rightMargin: 12; anchors.verticalCenter: parent.verticalCenter
+                text: I18n.t("Idle & Lockscreen"); variant: "tonal"; onClicked: page.ctl.page = 11 }
+        }
+        Row3 {
+            warn: !(priv.clipboard && priv.clipboard.available)
+            sym: "content_paste"; glyph: "\uf0ea"
+            label: I18n.t("Clipboard history")
+            desc: priv.clipboard && priv.clipboard.available ? (priv.clipboard.entries + " " + I18n.t("entries") + " · " + I18n.t("pinned items stay when you clear it")) : I18n.t("cliphist is not installed, so the history is off")
+            btn: priv.clipboard && priv.clipboard.available && priv.clipboard.entries > 0 ? I18n.t("Clear history") : ""
+            btnVariant: "danger"
+            onClicked: page.sh(["clipboard-clear"])
+        }
+        SettingRow {
+            label: I18n.t("Private DNS")
+            desc: (priv.dns && priv.dns.current ? I18n.t("Now") + ": " + priv.dns.current + ". " : "") + I18n.t("Encrypted name lookups through systemd-resolved. Opens a terminal for the password.")
+            reserved: 330
+            Row {
+                anchors.right: parent.right; anchors.rightMargin: 12; anchors.verticalCenter: parent.verticalCenter; spacing: 6
+                Btn { text: I18n.t("Off"); variant: (page.priv.dns || {}).preset === "off" ? "filled" : "tonal"; onClicked: page.term(page.priv.dns.cmds.off) }
+                Btn { text: "Cloudflare"; variant: (page.priv.dns || {}).preset === "cloudflare" ? "filled" : "tonal"; onClicked: page.term(page.priv.dns.cmds.cloudflare) }
+                Btn { text: "Quad9"; variant: (page.priv.dns || {}).preset === "quad9" ? "filled" : "tonal"; onClicked: page.term(page.priv.dns.cmds.quad9) }
+            }
+        }
+        Row3 {
+            warn: !(priv.firewall && priv.firewall.on)
+            sym: "firewall"; glyph: "\uf1e8"
+            label: (priv.firewall && priv.firewall.on) ? I18n.t("Firewall is on") : I18n.t("Firewall is off")
+            desc: (priv.firewall && priv.firewall.service) ? I18n.t("Service") + ": " + priv.firewall.service : I18n.t("A simple switch for ufw or firewalld. Opens a terminal for the password.")
+            btn: (priv.firewall && priv.firewall.on) ? I18n.t("Turn off") : I18n.t("Turn on")
+            btnVariant: (priv.firewall && priv.firewall.on) ? "tonal" : "filled"
+            onClicked: page.term((priv.firewall && priv.firewall.on) ? priv.firewall.off_cmd : priv.firewall.on_cmd)
+        }
+
+        // ---------- app permissions: what installed Flatpak apps may reach ----------
+        SectionTitle { text: I18n.t("App permissions"); sub: I18n.t("Installed Flatpak apps and the broad things they may reach. Flatseal changes them with switches; nothing here is changed by itself.") }
+        Repeater {
+            model: page.priv.apps || []
+            delegate: Row3 {
+                required property var modelData
+                warn: modelData.wide === true
+                sym: "apps"; glyph: "\uf085"
+                label: modelData.name
+                desc: page.reach(modelData) !== "" ? page.reach(modelData) : I18n.t("No broad access")
+                btn: I18n.t("Permissions")
+                onClicked: page.term(modelData.cmd)
+            }
+        }
+        Row3 {
+            visible: (page.priv.apps || []).length === 0
+            sym: "apps"; glyph: "\uf085"
+            label: I18n.t("No Flatpak apps installed")
+            desc: I18n.t("Flatpak apps keep their permissions in one place, so they can be shown and changed here. Other programs use the system directly.")
         }
 
         // ---------- virus scan ----------

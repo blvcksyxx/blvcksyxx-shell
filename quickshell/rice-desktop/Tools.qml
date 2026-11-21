@@ -5,8 +5,9 @@ import QtQuick
 
 // The toolbox (SUPER + X, again or Esc closes it): a sheet on the right edge with the small things you reach for
 // while you work. Tasks and Note are the same ones as the desktop widgets; Timer is a focus timer that keeps
-// counting while the sheet is closed; Convert does units and money; System shows the machine; Chat talks to an AI
-// model of your choice. Ctrl + 1 ... 6 or Ctrl + Tab changes the tab. rice-tools open [tab].
+// counting while the sheet is closed; Convert does units and money; System shows the machine; Chat talks to a local
+// AI model; Games lists what Steam, Lutris and the menu have; Auto summarizes, translates and reads text from a
+// picture. Ctrl + 1 ... 8 or Ctrl + Tab changes the tab. rice-tools open [tab].
 // Which edge, how wide, which tabs: Settings > Desktop > Toolbox.
 PanelWindow {
     id: tb
@@ -48,7 +49,9 @@ PanelWindow {
         { key: "timer", name: "Timer", icon: "timer", glyph: 0xF051B },
         { key: "convert", name: "Convert", icon: "swap_horiz", glyph: 0xF04E1 },
         { key: "system", name: "System", icon: "monitoring", glyph: 0xF0127 },
-        { key: "chat", name: "Chat", icon: "forum", glyph: 0xF0368 }
+        { key: "chat", name: "Chat", icon: "forum", glyph: 0xF0368 },
+        { key: "games", name: "Games", icon: "sports_esports", glyph: 0xF02FA },
+        { key: "auto", name: "Auto", icon: "auto_awesome", glyph: 0xF0674 }
     ]
     // the tabs you kept, in your order
     readonly property var order: {
@@ -61,7 +64,8 @@ PanelWindow {
     readonly property var here: tabs[tab] || all[0]
     property int from: 0
     onOrderChanged: if (order.indexOf(cur) < 0) cur = order[0]
-    readonly property var pageOf: ({ tasks: tasksTab, note: noteTab, timer: timerTab, convert: convertTab, system: systemTab, chat: chatTab })
+    readonly property var pageOf: ({ tasks: tasksTab, note: noteTab, timer: timerTab, convert: convertTab,
+                                    system: systemTab, chat: chatTab, games: gamesTab, auto: autoTab })
     function go(i) {
         i = (i + order.length) % order.length
         if (i === tab) return
@@ -182,7 +186,7 @@ PanelWindow {
                 if (e.key === Qt.Key_Escape) tb.shown = false
                 else if (ctrl && e.key === Qt.Key_Tab) tb.go(tb.tab + 1)
                 else if (ctrl && e.key === Qt.Key_Backtab) tb.go(tb.tab - 1)
-                else if (ctrl && e.key >= Qt.Key_1 && e.key <= Qt.Key_6 && e.key - Qt.Key_1 < tb.order.length) tb.go(e.key - Qt.Key_1)
+                else if (ctrl && e.key >= Qt.Key_1 && e.key <= Qt.Key_8 && e.key - Qt.Key_1 < tb.order.length) tb.go(e.key - Qt.Key_1)
                 else return
                 e.accepted = true
             }
@@ -258,6 +262,8 @@ PanelWindow {
                 Page { key: "convert"; ToolConvert { id: convertTab; anchors.fill: parent; pal: pal; enter: parent.enter; active: tb.shown && tb.cur === "convert" } }
                 Page { key: "system"; ToolSystem { id: systemTab; anchors.fill: parent; pal: pal; enter: parent.enter; active: tb.shown && tb.cur === "system" } }
                 Page { key: "chat"; ToolChat { id: chatTab; anchors.fill: parent; pal: pal; enter: parent.enter; active: tb.shown && tb.cur === "chat" } }
+                Page { key: "games"; ToolGames { id: gamesTab; anchors.fill: parent; pal: pal; enter: parent.enter; active: tb.shown && tb.cur === "games" } }
+                Page { key: "auto"; ToolAuto { id: autoTab; anchors.fill: parent; pal: pal; enter: parent.enter; active: tb.shown && tb.cur === "auto" } }
             }
 
             // ---------------- the tabs: the one you are on opens into a pill with its name, the others are icons ----------------

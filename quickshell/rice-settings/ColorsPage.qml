@@ -15,6 +15,13 @@ Item {
         Quickshell.execDetached(["bash", "-c", "printf %s \"$1\" | wl-copy", "_", hex(c)])
         page.ctl.status = name + " " + hex(c) + I18n.t(" copied")
     }
+    // a key color of your own: matugen makes every role from it, exactly like a wallpaper color
+    function applyCustom() {
+        const v = customF.text.trim()
+        if (!/^#[0-9a-fA-F]{6}$/.test(v)) { page.ctl.status = I18n.t("A color looks like #8B7BFF"); customF.forceActiveFocus(); return }
+        Quickshell.execDetached(["bash", "-c", "\"$HOME/.local/bin/rice-colors\" custom \"$1\"", "_", v])
+        page.ctl.status = I18n.t("Your color: %1").replace("%1", v.toUpperCase())
+    }
 
     readonly property var roles: [
         { n: "primary", c: M3.primary, i: M3.inkPrimary, on: "onPrimary" },
@@ -64,6 +71,21 @@ Item {
             }
             Btn { anchors.right: parent.right; anchors.rightMargin: 20; anchors.verticalCenter: parent.verticalCenter
                 text: I18n.t("Theme"); sym: "palette"; icon: ""; onClicked: page.ctl.page = 8 }
+        }
+
+        // ---------- your own key color ----------
+        SectionTitle { text: I18n.t("Your own color"); sub: I18n.t("Pick any color and the whole shell, the bar, notifications and your apps are made from it. It stays until you pick another theme or wallpaper color.") }
+        SettingRow {
+            label: I18n.t("Key color")
+            desc: I18n.t("A hex color, for example #8B7BFF. The current one is %1").replace("%1", page.hex(M3.seed))
+            reserved: 330
+            Row {
+                anchors.right: parent.right; anchors.rightMargin: 12; anchors.verticalCenter: parent.verticalCenter; spacing: 8
+                Rectangle { width: 38; height: 38; radius: 12; color: Qt.color(/^#[0-9a-fA-F]{6}$/.test(customF.text.trim()) ? customF.text.trim() : M3.seed)
+                    border.width: 1; border.color: M3.outlineVariant }
+                Field { id: customF; width: 140; placeholder: "#8B7BFF"; onAccepted: page.applyCustom() }
+                Btn { text: I18n.t("Apply"); primary: true; onClicked: page.applyCustom() }
+            }
         }
 
         // ---------- roles ----------

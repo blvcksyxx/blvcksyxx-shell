@@ -15,8 +15,11 @@ Item {
     property bool busy: false
     property string err: ""
     property bool setup: false
-    property var cfg: ({ provider: "ollama", url: "", model: "", models: [], reachable: null })
+    property var cfg: ({ provider: "ollama", url: "", model: "", models: [], reachable: null, rag: true, docs: {} })
     readonly property string tool: "\"$HOME/.local/bin/rice-tools\""
+    property bool ragOn: cfg.rag !== false
+    readonly property var docs: cfg.docs || ({})
+    property bool indexing: false
     function focusIt() { field.input.forceActiveFocus() }
     readonly property string summary: Tr.t("On this computer")
     onActiveChanged: if (active) stateP.running = true
@@ -36,7 +39,9 @@ Item {
         // what is sent: the last messages, not more than fits a command's argument
         let hist = msgs.slice(0, -1).slice(-24)
         while (hist.length > 1 && JSON.stringify(hist).length > 90000) hist = hist.slice(1)
-        ask.command = ["bash", "-c", "printf '%s\\n' \"$1\" | " + ch.tool + " ai ask", "_", JSON.stringify({ messages: hist })]
+        let req = { messages: hist }
+        if (ch.ragOn && ch.docs && ch.docs.indexed) req.rag = true
+        ask.command = ["bash", "-c", "printf '%s\\n' \"$1\" | " + ch.tool + " ai ask", "_", JSON.stringify(req)]
         busy = true
         ask.running = true
         toEnd.restart()
@@ -48,6 +53,19 @@ Item {
         toEnd.restart()
     }
     function stop() { ask.running = false; busy = false }
+    function setSources(l) {
+        if (!Array.isArray(l) || ch.msgs.length === 0) return
+        const a = ch.msgs.slice()
+        a[a.length - 1] = Object.assign({}, a[a.length - 1], { src: l })
+        ch.msgs = a
+    }
+    function indexNow() {
+        if (ch.indexing) return
+        ch.indexing = true
+        idxP.running = true
+    }
+    Process { id: idxP; command: ["bash", "-c", "\"$HOME/.local/bin/rice-tools\" ai index"]
+        onExited: { ch.indexing = false; stateP.running = true } }
     Process {
         id: ask
         stdout: SplitParser {
@@ -55,6 +73,7 @@ Item {
                 let j = null
                 try { j = JSON.parse(line) } catch (e) { return }
                 if (j.t) ch.grow(j.t)
+                else if (j.sources) ch.setSources(j.sources)
                 else if (j.err) ch.err = j.err
             }
         }
@@ -102,6 +121,17 @@ Item {
             Text { width: parent.width; wrapMode: Text.Wrap; color: ch.pal.dim; font.family: Fonts.main; font.pixelSize: 12
                 text: ch.cfg.reachable ? Tr.t("Ollama runs on your computer: nothing you write leaves it.")
                                        : Tr.t("Ollama does not answer. Install it and get a model: ollama pull llama3.2") }
+            // local files: the answer can use your notes and documents (nothing leaves the computer)
+            Row {
+                width: parent.width; spacing: 6
+                ToolBtn { pal: ch.pal; h: 32; label: Tr.t("Files") + (ch.docs.indexed ? " · " + ch.docs.files : ""); on: ch.ragOn
+                    onClicked: { ch.ragOn = !ch.ragOn; ch.set("rag", ch.ragOn ? "on" : "off") } }
+                ToolBtn { pal: ch.pal; h: 32; label: ch.indexing ? Tr.t("Indexing ...") : Tr.t("Index notes"); enabled: !ch.indexing
+                    onClicked: ch.indexNow() }
+            }
+            Text { width: parent.width; wrapMode: Text.Wrap; color: ch.pal.dim; font.family: Fonts.main; font.pixelSize: 11
+                text: ch.docs.indexed ? (Tr.t("Answer from %1 files in Documents, Notes, Desktop and your Note").replace("%1", ch.docs.files))
+                                      : Tr.t("Index your notes once: Documents, Notes, Desktop and the Note widget. Then the chat answers from them.") }
             // Ollama: its models as chips
             Flow { visible: ch.cfg.models.length > 0; width: parent.width; spacing: 6
                 Repeater { model: ch.cfg.models
@@ -132,7 +162,7 @@ Item {
                     required property int index
                     readonly property bool me: modelData.role === "user"
                     readonly property bool writing: !me && ch.busy && index === ch.msgs.length - 1
-                    width: mcol.width; height: bub.height
+                    width: mcol.width; height: bub.height + (srcText.visible ? srcText.implicitHeight + 6 : 0)
                     Rectangle {
                         id: bub
                         x: mrowi.me ? parent.width - width : 0
@@ -169,6 +199,11 @@ Item {
                                         NumberAnimation { to: 0; duration: 300; easing.type: Easing.OutBounce }
                                         PauseAnimation { duration: 420 - dot.index * 140 } } } } }
                     }
+                    // which of your files the answer used
+                    Text { id: srcText; x: 14; anchors.top: bub.bottom; anchors.topMargin: 5; width: mcol.width - 28
+                        visible: !mrowi.me && mrowi.modelData.src !== undefined && mrowi.modelData.src.length > 0
+                        text: Tr.t("Files") + ": " + (mrowi.modelData.src || []).map(function(s) { return s.name }).join(", ")
+                        color: ch.pal.dim; font.family: Fonts.main; font.pixelSize: 10; elide: Text.ElideRight }
                 }
             }
             // what went wrong

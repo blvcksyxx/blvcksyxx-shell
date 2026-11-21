@@ -2,15 +2,18 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 
-// Settings > Desktop > Toolbox: the sheet with tasks, a note, a focus timer, a converter, the system and a chat
-// (SUPER + X). Which edge it comes from, how wide it is, which tabs it has, and its key. rice-tools state / set.
+// Settings > Desktop > Toolbox: the sheet with tasks, a note, a focus timer, a converter, the system, a chat, games
+// and automatic text work (SUPER + X). Which edge it comes from, how wide it is, which tabs it has, and its key.
+// rice-tools state / set.
 Item {
     id: page
     property var ctl
     property var st: ({ side: "right", width: 440, dim: true, outside: true, remember: true, tab: "tasks",
-                        tabs: ["tasks", "note", "timer", "convert", "system", "chat"], all: ["tasks", "note", "timer", "convert", "system", "chat"], keys: "SUPER + X" })
-    readonly property var names: ({ tasks: "Tasks", note: "Note", timer: "Timer", convert: "Convert", system: "System", chat: "Chat" })
-    readonly property var syms: ({ tasks: "checklist", note: "sticky_note_2", timer: "timer", convert: "swap_horiz", system: "monitoring", chat: "forum" })
+                        tabs: ["tasks", "note", "timer", "convert", "system", "chat"], all: ["tasks", "note", "timer", "convert", "system", "chat", "games", "auto"], keys: "SUPER + X" })
+    readonly property var names: ({ tasks: "Tasks", note: "Note", timer: "Timer", convert: "Convert", system: "System",
+                                   chat: "Chat", games: "Games", auto: "Auto" })
+    readonly property var syms: ({ tasks: "checklist", note: "sticky_note_2", timer: "timer", convert: "swap_horiz",
+                                  system: "monitoring", chat: "forum", games: "sports_esports", auto: "auto_awesome" })
     function sh(args) { runner.command = ["bash", "-c", "\"$HOME/.local/bin/rice-tools\" \"$@\" 2>&1", "_"].concat(args); runner.running = true }
     function put(k, v, arg) { const n = Object.assign({}, page.st); n[k] = v; page.st = n; page.sh(["set", k, arg]) }
     function nice(k) { return String(k).split(" + ").map(function(p) { return p.length > 1 ? p.charAt(0) + p.slice(1).toLowerCase() : p }).join(" + ") }
@@ -40,7 +43,7 @@ Item {
                 x: 26; anchors.verticalCenter: parent.verticalCenter; spacing: 8; width: parent.width - 360
                 T { text: I18n.t("Toolbox"); font.pixelSize: 26; font.weight: Font.DemiBold; color: M3.inkPrimaryC }
                 T { width: parent.width; wrapMode: Text.Wrap; font.pixelSize: 13; color: M3.inkPrimaryC; opacity: 0.8
-                    text: I18n.t("Tasks, a note, a focus timer, a converter, the system and a chat, on a sheet at the edge of the screen.") }
+                    text: I18n.t("Tasks, a note, a focus timer, a converter, the system, a chat, your games and local text tools, on a sheet at the edge of the screen.") }
                 Row { spacing: 8; topPadding: 6
                     Btn { primary: true; text: I18n.t("Open it"); sym: "open_in_new"
                         onClicked: Quickshell.execDetached(["bash", "-c", "\"$HOME/.local/bin/rice-tools\" open"]) }
@@ -134,7 +137,7 @@ Item {
             onToggled: function(v) { page.put("remember", v, v ? "on" : "off"); if (!v && page.st.tabs.length) page.sh(["set", "tab", page.st.tabs[0]]) }
         }
 
-        SectionTitle { text: I18n.t("Tabs"); sub: I18n.t("Turn off the ones you do not use, and put them in your order with the arrows. Ctrl + 1 ... 6 goes straight to one.") }
+        SectionTitle { text: I18n.t("Tabs"); sub: I18n.t("Turn off the ones you do not use, and put them in your order with the arrows. Ctrl + 1 ... 8 goes straight to one.") }
         Repeater {
             model: (page.st.tabs || []).concat((page.st.all || []).filter(k => (page.st.tabs || []).indexOf(k) < 0))
             delegate: SettingRow {

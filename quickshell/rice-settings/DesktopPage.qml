@@ -28,7 +28,8 @@ Item {
         { key: "trio", label: I18n.t("CPU · GPU · RAM"), icon: "\uf2db", desc: I18n.t("Three small shapes") },
         { key: "forecast", label: I18n.t("Forecast"), icon: "\uf0c2", desc: I18n.t("Now, how it feels and the next hours") },
         { key: "music", label: I18n.t("Music card"), icon: "\uf001", desc: I18n.t("Cover and buttons; opens to the lyrics") },
-        { key: "datepill", label: I18n.t("Date & time"), icon: "\uf017", desc: I18n.t("A slim pill with the date and the time") }
+        { key: "datepill", label: I18n.t("Date & time"), icon: "\uf017", desc: I18n.t("A slim pill with the date and the time") },
+        { key: "clipboard", label: I18n.t("Clipboard"), icon: "\uf0ea", desc: I18n.t("What you copied, newest first") }
     ]
 
     // widget styles (Settings > Widgets > Theme)
@@ -336,7 +337,7 @@ Item {
                 width: parent.width; height: perfCol.implicitHeight
                 property bool lite: false
                 property bool lazy: false
-                Process { running: true; command: ["bash", "-c", "[ -e \"$HOME/.config/rice/settings-lazy\" ] && echo 1"]
+                Process { running: true; command: ["bash", "-c", "[ ! -e \"$HOME/.config/rice/settings-keep\" ] && echo 1"]
                     stdout: StdioCollector { onStreamFinished: perf.lazy = text.trim() === "1" } }
                 Process { running: true; command: ["bash", "-c", "\"$HOME/.local/bin/rice-effects\" state 2>/dev/null"]
                     stdout: StdioCollector { onStreamFinished: { try { perf.lite = JSON.parse(text).lite === true } catch (e) { } } } }
