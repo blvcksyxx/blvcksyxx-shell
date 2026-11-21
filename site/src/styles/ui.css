@@ -16,6 +16,13 @@
   aspect-ratio: 16 / 9;
 }
 
+.desktop--shot img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
 .desktop--stage {
   width: 100%;
   height: 100%;

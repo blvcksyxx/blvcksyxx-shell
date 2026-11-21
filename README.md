@@ -48,6 +48,9 @@
 Screenshots of the running shell. More on the [website](https://shell.blvcksyxx.xyz/#previews).
 
 <p align="center">
+  <a href="https://shell.blvcksyxx.xyz/#previews"><img src="assets/screenshots/desktop-1080.webp" alt="blvcksyxx shell desktop" width="100%"></a>
+</p>
+<p align="center">
   <a href="https://shell.blvcksyxx.xyz/#previews"><img src="assets/screenshots/settings-home.webp" alt="blvcksyxx shell Settings home" width="100%"></a>
 </p>
 <p align="center">
