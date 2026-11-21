@@ -52,7 +52,7 @@ Screenshots of the running shell. More on the [website](https://shell.blvcksyxx.
 </p>
 <p align="center">
   <a href="https://shell.blvcksyxx.xyz/#previews"><img src="assets/screenshots/settings-bar.webp" alt="blvcksyxx bar and Dynamic island settings" width="49%"></a>
-  <a href="https://shell.blvcksyxx.xyz/#previews"><img src="assets/screenshots/settings-theme.webp" alt="blvcksyxx shell color themes" width="49%"></a>
+  <a href="https://shell.blvcksyxx.xyz/#previews"><img src="assets/screenshots/settings-theme.webp" alt="blvcksyxx shell themes" width="49%"></a>
 </p>
 <p align="center">
   <a href="https://shell.blvcksyxx.xyz/#previews"><img src="assets/screenshots/settings-widgets.webp" alt="blvcksyxx shell desktop widgets" width="49%"></a>
@@ -60,7 +60,7 @@ Screenshots of the running shell. More on the [website](https://shell.blvcksyxx.
 </p>
 <p align="center">
   <a href="https://shell.blvcksyxx.xyz/#previews"><img src="assets/screenshots/settings-notifications.webp" alt="blvcksyxx shell notifications" width="49%"></a>
-  <a href="https://shell.blvcksyxx.xyz/#previews"><img src="assets/screenshots/settings-update.webp" alt="blvcksyxx shell Update Center" width="49%"></a>
+  <a href="https://shell.blvcksyxx.xyz/#previews"><img src="assets/screenshots/settings-update.webp" alt="blvcksyxx shell Update Center up to date on v2.1.0" width="49%"></a>
 </p>
 
 **v2.1.0** brings the whole upstream V4.84 update (much lighter running, minimize and stack windows, your own keys, launcher favourites, a gentler volume, login screen clocks, niri monitor scrolling) and the next features: a game library and local text work in the Toolbox, Markdown notes, a clipboard widget, the privacy panel, a custom key colour, local RAG over your notes and OCR in English and Russian. [release notes](docs/releases/v2.1.0.md).
