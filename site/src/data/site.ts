@@ -77,7 +77,7 @@ export const previews = [
     wide: true,
   },
   {
-    src: '/screenshots/settings-toolbox.webp',
+    src: '/screenshots/settings-toolbox-page.webp',
     alt: 'blvcksyxx shell Toolbox settings page with side, width, transparency and blur controls',
     title: 'Toolbox',
     caption: 'Games, local text work, Markdown notes and a chat that reads your files.',
