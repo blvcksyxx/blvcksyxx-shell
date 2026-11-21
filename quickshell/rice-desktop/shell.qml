@@ -630,6 +630,8 @@ ShellRoot {
     LazyPanel { name: "cc-open"; ControlCenter { nf: notifs } }
     // bottom-right screen corner: opens the control center
     CCEdgeTrigger { screen: Mon.screen }
+    // top-right screen corner: opens the toolbox (SUPER + X)
+    ToolsEdgeTrigger { screen: Mon.screen }
 
     Dock { dc: root.cfg.dock ? root.cfg.dock : ({}) }
 

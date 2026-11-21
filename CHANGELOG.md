@@ -1,3 +1,9 @@
+## V2.1.1
+
+- Toolbox now opens from the top-right screen corner: move the pointer into the top-right corner for a moment and the sheet slides in (the same as `SUPER + X`); move away and it stays, close it with `Esc` or a click outside
+- The corner trigger is a small overlay in the top-right corner; it does not take the pointer from windows that sit under it
+- Nothing else changes from v2.1.0
+
 # Changelog
 
 All notable changes to blvcksyxx shell are listed here. The current version is in

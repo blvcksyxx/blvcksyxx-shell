@@ -12,10 +12,10 @@ export const site = {
   installDocs:
     'https://github.com/blvcksyxx/blvcksyxx-shell/blob/main/docs/INSTALL.md',
   releases:
-    'https://github.com/blvcksyxx/blvcksyxx-shell/releases/tag/v2.1.0',
+    'https://github.com/blvcksyxx/blvcksyxx-shell/releases/tag/v2.1.1',
   releaseNotes:
-    'https://github.com/blvcksyxx/blvcksyxx-shell/blob/main/docs/releases/v2.1.0.md',
-  version: 'v2.1.0',
+    'https://github.com/blvcksyxx/blvcksyxx-shell/blob/main/docs/releases/v2.1.1.md',
+  version: 'v2.1.1',
   description:
     'blvcksyxx shell is a Linux desktop shell for Hyprland and niri: Task view, bar cards, widgets, dynamic island, control center, a game library, privacy controls, local AI tools and a Material 3 settings app.',
 } as const;
@@ -30,6 +30,12 @@ export const nav = [
 ] as const;
 
 export const whatsNew = [
+  {
+    num: '00',
+    title: 'Toolbox from the top-right corner',
+    body: 'Move the pointer into the top-right screen corner for a moment and the Toolbox slides in, the same as SUPER + X. Move away and it stays; close it with Esc or a click outside. The tab, width, transparency and blur you set in Settings > Desktop > Toolbox still apply.',
+    tags: ['top-right', 'hover', 'SUPER + X'],
+  },
   {
     num: '01',
     title: 'Windows, stacks and your own keys',
@@ -127,7 +133,7 @@ export const previews = [
   },
   {
     src: '/screenshots/settings-update.webp',
-    alt: 'blvcksyxx shell Update Center showing V2.1.0 is up to date',
+    alt: 'blvcksyxx shell Update Center showing V2.1.1 is up to date',
     title: 'Update Center · v2.1.0',
     caption: 'You are up to date. Signed updates, local changes kept aside.',
     wide: true,
